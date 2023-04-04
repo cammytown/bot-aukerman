@@ -1,3 +1,6 @@
+import os
+import datetime
+
 from chatbots.Chatbot import Chatbot
 
 from .HumanPerformer import HumanPerformer
@@ -7,6 +10,7 @@ class Performance:
     dialogue_history: str
     setting_description: str
     max_lines: int = 0
+    logdir: str = None
 
     chatbot: Chatbot
 
@@ -17,13 +21,29 @@ class Performance:
     multibot: bool = False #@REVISIT naming; maybe unnecessary
 
     #performance_type #@TODO i.e. round-robin, random, personality-dependent, etc.
-    def __init__(self):
+    def __init__(self, logdir = None, multibot = False):
         self.dialogue_history = ""
         self.setting_description = ""
         self.performers = {
             "human": [],
             "bot": []
         }
+        self.logdir = logdir
+
+        # If logdir is set and dialogue_history.txt exists, rename it:
+        if(self.logdir):
+            # Ensure logdir ends with a slash:
+            if(self.logdir[-1] != "/"):
+                self.logdir += "/"
+
+            if(os.path.isfile(self.logdir + "current-dialogue-history.txt")):
+                # Rename file to dialogue-history_[file creation time].txt:
+                #@REVISIT i let github copilot do its thing here; clean up:
+                file_creation_time = datetime.datetime.fromtimestamp(os.path.getctime(self.logdir + "current-dialogue-history.txt")).strftime("%Y-%m-%d_%H-%M-%S")
+                os.rename(self.logdir + "current-dialogue-history.txt", self.logdir + "dialogue-history_" + file_creation_time + ".txt")
+
+    def set_chatbot(self, chatbot):
+        self.chatbot = chatbot
 
     # Add a performer to the performance:
     def add_performer(self, performer):
@@ -52,12 +72,24 @@ class Performance:
     # Generate new dialogue for characters from dialogue history:
     def generate_dialogue(self):
         # If single chatbot generates dialogue for all characters:
-        if(not multibot):
-            # Prepare chatbot prompt:
-            prompt_string = prepare_singlebot_prompt()
+        if(not self.multibot):
+            if(self.dialogue_history == ""): #@REVISIT better check?
+                # Prepare chatbot prompt:
+                prompt_string = self.prepare_singlebot_prompt()
 
-            # Send request to chatbot:
-            response = chatbot.send_request(prompt_string)
+                print("Prompt:")
+                print(prompt_string)
+
+                # Send request to chatbot:
+                response = self.chatbot.send_message(prompt_string)
+            else:
+                response = self.chatbot.request_tokens()
+
+            # Add response to dialogue history:
+            self.dialogue_history += response
+
+            if(self.logdir):
+                open(self.logdir + "current-dialogue-history.txt", "a").write(response)
 
         # If multiple chatbots generate dialogue for individual characters:
         else:
@@ -70,45 +102,32 @@ class Performance:
 
     # Prepare context for single-bot performance:
     def prepare_singlebot_prompt(self):
+        #@TODO adjust prompt based on chatbot
+
         # Prepare context:
-        prompt_string = ""
+        # Load prompts/gpt4all.txt and replace placeholders:
+        #@REVISIT relies on file structure:
+        prompt_string = open("botimprov/prompts/gpt4all.txt", "r").read()
 
-        # Append  description to context:
-        prompt_string += "Please generate dialogue for the following characters:\n"
 
+        bot_performers = ""
         for bot_performer in self.performers["bot"]:
-            prompt_string += bot_performer.get_description() + "\n"
-        prompt_string += "\n"
+            bot_performers += bot_performer.get_description()
+            # Add newline if not last performer:
+            if(bot_performer != self.performers["bot"][-1]):
+                bot_performers += "\n"
 
-        prompt_string += "The following are characters played by humans; "
-        prompt_string += "please do not generate dialogue for these characters:\n"
+        human_performers = ""
         for human_performer in self.performers["human"]:
-            prompt_string += human_performer.get_description() + "\n"
+            human_performers += human_performer.get_description()
+            # Add newline if not last performer: #@REVISIT redundancy
+            if(human_performer != self.performers["human"][-1]):
+                human_performers += "\n"
 
-        prompt_string += "\n"
-
-        # Append setting description to context:
-        prompt_string += "The setting of the scene is as follows:\n"
-        prompt_string += self.setting_description + "\n"
-        prompt_string += "\n"
-
-        # Append dialogue history to context:
-        if(self.dialogue_history != ""):
-            prompt_string += "The following dialogue has already been spoken:\n"
-            prompt_string += self.dialogue_history
-            prompt_string += "\n"
-
-        prompt_string += "Each line of dialogue should take the following form:\n"
-        prompt_string += "CHARACTER NAME: Dialogue\n"
-
-        prompt_string += "\n"
-
-        # Set max_lines to number of bot chars (one each) if max_lines is not set:
-        max_lines = self.max_lines if self.max_lines else len(self.performers["bot"])
-
-        # Generate {max_lines} lines of dialogue:
-        prompt_string += f"Please generate no more than {max_lines} lines dialogue.\n"
-        #@REVISIT maybe 'generate no more than x lines of dialogue per char'
+        prompt_string = prompt_string.replace("{{dialogue_history}}", self.dialogue_history)
+        prompt_string = prompt_string.replace("{{setting_description}}", self.setting_description)
+        prompt_string = prompt_string.replace("{{bot_characters}}", bot_performers)
+        prompt_string = prompt_string.replace("{{human_characters}}", human_performers)
 
         return prompt_string
 
