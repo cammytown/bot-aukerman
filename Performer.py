@@ -1,13 +1,20 @@
 class Performer:
-    def __init__(self, character_name, character_desc = "No description"):
+    def __init__(self,
+                 character_name,
+                 character_desc = None,
+                 performance = None,
+     ):
         self.character_name = character_name
         self.character_desc = character_desc
+        self.performance = performance
 
-    def perform(self):
-        character_name: str
-        character_desc: str
+        if(not self.character_desc):
+            self.character_desc = "No description"
 
-        print("Performing", self.character_name)
+
+    def perform(self, dialogue):
+        #@REVISIT
+        pass
 
     #@REVISIT naming:
     def get_description(self):
