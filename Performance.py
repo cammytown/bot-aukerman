@@ -18,16 +18,42 @@ class DialogueLine:
         self.dialogue = dialogue
 
     def __str__(self):
-        return self.performer.character_name + ": " + self.dialogue
+        return self.character_name + ": " + self.dialogue
+        # return to_str(self)
+
+    # def __repr__(self):
+    #     return to_str(self)
 
     @staticmethod
     def from_str(dialogue_line_str):
-        character_name, dialogue = dialogue_line_str.split(": ", 1)
+        # Split on colon:
+        colon_split = dialogue_line_str.split(":", 1)
+
+        # If there is no colon:
+        if(len(colon_split) == 1):
+            return False
+            # raise Exception("DialogueLine.from_str(): colon not found in dialogue_line_str: " + dialogue_line_str)
+
+        # Extract character name and dialogue:
+        character_name = colon_split[0].upper()
+        dialogue = colon_split[1]
+
+        # Remove whitespace:
+        character_name = character_name.strip()
+        dialogue = dialogue.strip()
+
+        # If dialogue is wrapped in quotes, remove them:
+        if(dialogue[0] == "\"" and dialogue[-1] == "\""):
+            dialogue = dialogue[1:-1]
+
+        #
+
+        # Return DialogueLine object:
         return DialogueLine(character_name, dialogue)
 
 class Performance:
     # Script / dialogue history:
-    dialogue_history: []
+    dialogue_history: list = []
 
     # Setting / scene description:
     setting_description: str
@@ -36,10 +62,13 @@ class Performance:
     max_lines: int = 0
 
     # Where to save the script:
-    logdir: str = None
+    logdir: str
 
     # Chatbot to use for generating dialogue:
     chatbot: Chatbot
+
+    # Whether the chatbot has been prompted yet: #@REVISIT
+    context_initialized: bool
 
     # TTS engine:
     tts: CoquiImp
@@ -54,7 +83,7 @@ class Performance:
     #performance_type #@TODO i.e. round-robin, random, personality-dependent, etc.
     def __init__(
         self,
-        logdir = None,
+        logdir: str = "",
         resume_from_log = False,
         multibot = False
     ):
@@ -63,19 +92,23 @@ class Performance:
         self.performers = {}
         self.logdir = logdir
         self.tts = CoquiImp("tts_models/multilingual/multi-dataset/your_tts")
+        self.multibot = multibot
+        self.context_initialized = False
 
         if(resume_from_log):
             # Load current-dialogue-history.txt into dialogue_history if it exists:
             if(os.path.isfile(self.logdir + "current-dialogue-history.txt")):
                 with open(self.logdir + "current-dialogue-history.txt", "r") as f:
-                    script_string = f.read()
+                    dialogue_file_str = f.read()
 
                     # Split on newlines:
-                    dialogue_lines = script_string.splitlines()
+                    file_lines = dialogue_file_str.splitlines()
 
                     # Create DialogueLine objects from each line:
-                    for dialogue_line in dialogue_lines:
-                        self.dialogue_history.append(DialogueLine.from_str(dialogue_line))
+                    for file_line in file_lines:
+                        dialogue_line = DialogueLine.from_str(file_line)
+                        if(dialogue_line):
+                            self.dialogue_history.append(dialogue_line)
 
         # If logdir is set and current-dialogue-history.txt exists, rename it:
         elif(self.logdir):
@@ -95,21 +128,15 @@ class Performance:
             performer = self.performers[line.character_name]
 
             print("=====================================")
-            print("Performing line for", line.character_name)
-            print(line.dialogue)
+            print("Performing line for", line.character_name, ":", line.dialogue)
 
             # If the performer is a BotPerformer:
             if isinstance(performer, BotPerformer):
                 # Perform the line:
                 performer.perform(line.dialogue)
-
             # # If the performer is a HumanPerformer:
             # elif isinstance(performer, HumanPerformer):
             #     pass
-
-
-        # tts.say(message, speaker=tts.tts.speakers[0])
-        # tts.say(message, speaker=tts.tts.speakers[3])
 
     def set_chatbot(self, chatbot):
         self.chatbot = chatbot
@@ -129,7 +156,7 @@ class Performance:
     def generate_dialogue(self):
         # If single chatbot generates dialogue for all characters:
         if(not self.multibot):
-            if(self.dialogue_history == ""): #@REVISIT better check?
+            if(self.dialogue_history == "" or not self.context_initialized): #@REVISIT better check?
                 # Prepare chatbot prompt:
                 prompt_string = self.prepare_singlebot_prompt()
 
@@ -138,18 +165,24 @@ class Performance:
 
                 # Send request to chatbot:
                 response = self.chatbot.send_message(prompt_string)
+
+                self.context_initialized = True
             else:
                 response = self.chatbot.request_tokens()
 
             # Parse response to extract actual dialogue:
-            dialogue_obj = self.parse_chatbot_response(response)
+            dialogue_lines = self.parse_chatbot_response(response)
 
-            # Add response to dialogue history:
+            # Add dialogue lines to dialogue history:
+            for dialogue_line in dialogue_lines:
+                self.dialogue_history.append(dialogue_line)
 
-            # self.dialogue_history += dialogue_obj["character_name"] + ": "
-            # self.dialogue_history += dialogue_obj["dialogue"] + "\n"
-
+            # If logdir is set, write response to file:
             if(self.logdir):
+                # Remove empty lines and strip surrounding whitespace from response
+                response = response.replace("\n\n", "\n").strip()
+
+                # Write response to file:
                 open(self.logdir + "current-dialogue-history.txt", "a").write(response)
 
         # If multiple chatbots generate dialogue for individual characters:
@@ -167,32 +200,21 @@ class Performance:
 
         # For each line in response:
         for line in response.split("\n"):
+
             # If line contains a colon:
             if(":" in line):
-                # Extract character name and convert to all uppercase:
-                character_name = line.split(":")[0].upper()
-
-                # Extract dialogue:
-                line_string = line.split(":")[1]
-
-                # Remove leading whitespace:
-                line_string = line_string.lstrip()
-
-                # Remove trailing whitespace:
-                line_string = line_string.rstrip()
-
-                line_obj = DialogueLine(character_name, line_string)
+                line_obj = DialogueLine.from_str(line)
                 dialogue_lines.append(line_obj)
 
             # If line does not contain a colon, skip: #@REVISIT
             else:
                 continue
 
-        return dialogue_string
+        return dialogue_lines
 
     # # Parse dialogue history and return a list of lines:
     # def get_dialogue_lines(self): #@REVISIT naming
-    #     # For 
+    #     # For
 
 
     # Prepare context for single-bot performance:
@@ -202,8 +224,9 @@ class Performance:
         # Prepare context:
         # Load prompts/gpt4all.txt and replace placeholders:
         #@REVISIT relies on file structure:
-        prompt_string = open("botimprov/prompts/gpt4all.txt", "r").read()
-
+        # prompt_string = open("botimprov/prompts/gpt4all.txt", "r").read()
+        # prompt_string = open("botimprov/prompts/chatgpt.txt", "r").read()
+        prompt_string = open("botimprov/prompts/minimal.txt", "r").read()
 
         bot_performers = ""
         human_performers = ""
@@ -227,14 +250,26 @@ class Performance:
                 human_performers += performer.get_description()
 
             else:
-                print(isinstance(performer, Performer))
-                print(performer)
                 raise Exception("Invalid performer type.")
 
-        prompt_string = prompt_string.replace("{{dialogue_history}}", self.dialogue_history)
-        prompt_string = prompt_string.replace("{{setting_description}}", self.setting_description)
-        prompt_string = prompt_string.replace("{{bot_characters}}", bot_performers)
-        prompt_string = prompt_string.replace("{{human_characters}}", human_performers)
+        # Convert dialogue_history to string:
+        dialogue_history_string = ""
+        for line in self.dialogue_history:
+            dialogue_history_string += str(line) + "\n" #@REVISIT readable?
+            # dialogue_history_string += line.character_name + ": " + line.dialogue + "\n"
+
+        # Prepare placeholders:
+        replacements = {
+            "{{dialogue_history}}": dialogue_history_string,
+            "{{setting_description}}": self.setting_description,
+            "{{bot_characters}}": bot_performers,
+            "{{human_characters}}": human_performers
+        }
+
+        # Replace placeholders:
+        for placeholder in replacements:
+            replacement = replacements[placeholder]
+            prompt_string = prompt_string.replace(placeholder, replacement)
 
         return prompt_string
 

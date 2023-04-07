@@ -20,7 +20,7 @@ The setting of the scene is as follows:
 
 {{setting_description}}
 
-Please generate 3 lines of dialogue.
+Please generate 4 lines of dialogue.
 
 DIALOGUE BEGINS HERE:
 

@@ -1,0 +1,11 @@
+Please write dialogue for the following scene. Be weird, eccentric, creative, and have fun! Express your deepest truths. Fulfill your creative impulses.
+
+CHARACTER LIST:
+{{bot_characters}}
+
+SCENE DESCRIPTION:
+{{setting_description}}
+
+CURRENT SCRIPT:
+{{dialogue_history}}
+
