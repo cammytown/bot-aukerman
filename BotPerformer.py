@@ -3,6 +3,8 @@ from chatbots.Chatbot import Chatbot #@REVISIT
 
 class BotPerformer(Performer):
     chatbot: Chatbot
+    tts = None #@REVISIT
+    speaker: str
 
     def __init__(
         self,
@@ -16,9 +18,14 @@ class BotPerformer(Performer):
         # Initialize Performer:
         super().__init__(character_name, character_desc, performance)
 
-        self.chatbot = chatbot
-        self.tts = tts
-        self.speaker = speaker
+        if(chatbot):
+            self.chatbot = chatbot
+
+        if(tts):
+            self.tts = tts
+
+        if(speaker):
+            self.speaker = speaker
 
         if(not self.performance):
             raise Exception("Performer Performance not set.")
@@ -31,7 +38,8 @@ class BotPerformer(Performer):
 
         if(not self.speaker):
             #@REVISIT only for multi-speaker TTS:
-            self.speaker = self.tts.speakers[0]
+            if(self.performance.tts.speakers):
+                self.speaker = self.performance.tts.speakers[0]
 
     def perform(self, dialogue):
         print("Performing", self.character_name)
