@@ -8,6 +8,8 @@ Do not write dialogue for any other characters, as they will be written by other
 SCENE DESCRIPTION:
 {{setting_description}}
 
+{{extra_directions}}
+
 CURRENT SCRIPT:
 {{dialogue_history}}
 

@@ -5,75 +5,10 @@ import random
 from .Performer import Performer
 from .HumanPerformer import HumanPerformer
 from .BotPerformer import BotPerformer
+from .DialogueLine import DialogueLine
 
 from chatbots import Chatbot
 from CoquiImp import CoquiImp
-
-class DialogueLine:
-    character_name: str
-    dialogue: str
-    parenthetical: str
-
-    def __init__(self, character_name, dialogue, parenthetical = ""):
-        self.character_name = character_name
-        self.dialogue = dialogue
-        self.parenthetical = parenthetical
-
-    def __str__(self):
-        return self.character_name + ": " + self.dialogue
-        # return to_str(self)
-
-    # def __repr__(self):
-    #     return to_str(self)
-
-    @staticmethod
-    def from_str(dialogue_line_str):
-        # Split on colon
-        colon_split = dialogue_line_str.split(":", 1)
-
-        # If there is no colon
-        if(len(colon_split) == 1):
-            #@TODO attempt to parse anyway
-            return False
-            # raise Exception("DialogueLine.from_str(): colon not found in dialogue_line_str: " + dialogue_line_str)
-
-        parenthetical = ""
-
-        # Check for parenthetical
-        if("(" in colon_split[0]):
-            character_name = colon_split[0].split("(")[0].strip()
-            parenthetical = colon_split[0].split("(")[1].split(")")[0].strip()
-        elif("[" in colon_split[0]):
-            character_name = colon_split[0].split("[")[0].strip()
-            parenthetical = colon_split[0].split("[")[1].split("]")[0].strip()
-        # If no parenthetical
-        else:
-            character_name = colon_split[0]
-
-        # Convert character_name to uppercase
-        character_name = character_name.upper()
-
-        dialogue = colon_split[1]
-
-        # Check for parenthetical in dialogue
-        #@TODO redundant code
-        if("(" in dialogue):
-            parenthetical = dialogue.split("(")[1].split(")")[0].strip()
-            dialogue = dialogue.split("(")[0].strip()
-        elif("[" in dialogue):
-            parenthetical = dialogue.split("[")[1].split("]")[0].strip()
-            dialogue = dialogue.split("[")[0].strip()
-
-        # Remove whitespace
-        character_name = character_name.strip()
-        dialogue = dialogue.strip()
-
-        # If dialogue is wrapped in quotes, remove them
-        if(dialogue[0] == "\"" and dialogue[-1] == "\""):
-            dialogue = dialogue[1:-1]
-
-        # Return DialogueLine object
-        return DialogueLine(character_name, dialogue)
 
 class Performance:
     # Script / dialogue history
@@ -132,9 +67,13 @@ class Performance:
 
                     # Create DialogueLine objects from each line
                     for file_line in file_lines:
-                        dialogue_line = DialogueLine.from_str(file_line)
-                        if(dialogue_line):
+                        try:
+                            dialogue_line = DialogueLine.from_str(file_line)
                             self.dialogue_history.append(dialogue_line)
+                        except ValueError as e:
+                            print("WARNING: invalid dialogue line in current-dialogue-history.txt: ", file_line)
+                            print(e)
+                            continue
 
         # If logdir is set and current-dialogue-history.txt exists, rename it:
         elif(self.logdir):
@@ -169,6 +108,10 @@ class Performance:
 
     # Add a performer to the performance
     def add_performer(self, performer: Performer):
+        #@REVISIT scaffolding:
+        performer.performance = self
+
+        # Add the performer to the list of performers
         self.performers[performer.character_name.upper()] = performer
 
         # If the performer is a BotPerformer
@@ -185,7 +128,44 @@ class Performance:
         #@TODO improve architecture
         self.setting_description = setting_description
 
-    # def add_dialog(self, performer, dialogue):
+    # def add_user_dialogue(self, character, user_input):
+    #     self.add_dialogue(DialogueLine(character, user_input))
+
+    # Add one or multiple instances of dialogue to the dialogue history
+    def add_dialogue(self, dialogue):
+        # If dialogue is a DialogueLine
+        if isinstance(dialogue, DialogueLine):
+            # Add the DialogueLine to the dialogue history
+            self.dialogue_history.append(dialogue)
+        # If dialogue is a list of DialogueLine
+        elif isinstance(dialogue, list):
+            # Add each DialogueLine to the dialogue history
+            for line in dialogue:
+                self.dialogue_history.append(line)
+        elif isinstance(dialogue, str):
+            # Try to parse the string as a DialogueLine
+            try:
+                dialogue = DialogueLine.from_str(dialogue)
+
+                # Add the DialogueLine to the dialogue history
+                self.dialogue_history.append(dialogue)
+
+            except ValueError as e:
+                print("ERROR: invalid dialogue line: ", dialogue)
+                print(e)
+                return
+        else:
+            print("ERROR: Invalid dialogue type:", type(dialogue))
+
+        # If logdir is set, write response to file
+        if(self.logdir):
+            # Remove empty lines and strip surrounding whitespace from response
+            # response = response.replace("\n\n", "\n").strip()
+
+            # Write response to file
+            open(self.logdir + "current-dialogue-history.txt",
+                  "a").write(str(dialogue) + "\n")
+                 # "a").write(response)
 
     # Generate new dialogue for characters from dialogue history
     def generate_dialogue(self, max_lines = 0):
@@ -223,8 +203,13 @@ class Performance:
         for line in response.split("\n"):
             # If line contains a colon
             if(":" in line):
-                line_obj = DialogueLine.from_str(line)
-                dialogue_lines.append(line_obj)
+                try:
+                    line_obj = DialogueLine.from_str(line)
+                    dialogue_lines.append(line_obj)
+                except ValueError as e:
+                    print("WARNING: Invalid dialogue line:", line)
+                    print(e)
+                    continue
 
             # If line does not contain a colon, skip: #@REVISIT
             else:
@@ -245,6 +230,8 @@ class Performance:
 
         bot_characters = ""
         human_characters = ""
+        dialogue_history_string = ""
+        extra_directions = ""
 
         # Iterate through performers
         for character_name in self.performers:
@@ -257,30 +244,30 @@ class Performance:
                     bot_characters += "\n"
 
                 bot_characters += performer.get_description()
-
             # If performer is a human
             elif isinstance(performer, HumanPerformer):
                 # Add newline if not first performer
                 if(human_characters != ""):
                     human_characters += "\n"
-
                 human_characters += performer.get_description()
-
             else:
                 raise Exception("Invalid performer type.")
 
         # Convert dialogue_history to string
-        dialogue_history_string = ""
         for line in self.dialogue_history:
             dialogue_history_string += str(line) + "\n" #@REVISIT readable?
-            # dialogue_history_string += line.character_name + ": " + line.dialogue + "\n"
+
+        # If max_lines is set, add it to extra_directions
+        if(max_lines):
+            extra_directions += "Please generate no more than " + str(max_lines) + " lines of dialogue."
 
         # Prepare placeholders
         replacements = {
-            "{{dialogue_history}}": dialogue_history_string,
-            "{{setting_description}}": self.setting_description,
             "{{bot_characters}}": bot_characters,
-            "{{human_characters}}": human_characters
+            "{{human_characters}}": human_characters,
+            "{{setting_description}}": self.setting_description,
+            "{{dialogue_history}}": dialogue_history_string,
+            "\n{{extra_directions}}": extra_directions
         }
 
         # Replace placeholders
@@ -289,3 +276,10 @@ class Performance:
             prompt_string = prompt_string.replace(placeholder, replacement)
 
         return prompt_string
+
+    def log(self, message):
+        print(message)
+
+        # If logdir is set, write message to file
+        if(self.logdir):
+            open(self.logdir + "log.txt", "a").write(message + "\n")
