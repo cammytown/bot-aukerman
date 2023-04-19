@@ -98,7 +98,9 @@ class Performance:
             # If the performer is a BotPerformer
             if isinstance(performer, BotPerformer):
                 # Perform the line
-                performer.perform(line.dialogue)
+                # performer.perform(line.dialogue)
+                self.tts.say(line.dialogue, speaker=performer.speaker)
+
             # # If the performer is a HumanPerformer
             # elif isinstance(performer, HumanPerformer):
             #     pass
@@ -108,9 +110,6 @@ class Performance:
 
     # Add a performer to the performance
     def add_performer(self, performer: Performer):
-        #@REVISIT scaffolding:
-        performer.performance = self
-
         # Add the performer to the list of performers
         self.performers[performer.character_name.upper()] = performer
 
@@ -183,15 +182,45 @@ class Performance:
         # For now, just pick a random bot performer
         bot_performer = random.choice(self.bot_performers)
 
-        # If performer has internal chatbot
-        if(bot_performer.chatbot):
-            # Generate dialogue for that performer
-            lines = bot_performer.generate_dialogue(max_lines)
-            max_lines -= len(lines)
+        # Generate dialogue for that performer
+        lines = self.generate_performer_lines(bot_performer, max_lines)
 
         # Add dialogue lines to dialogue history
         for line in lines:
             self.dialogue_history.append(line)
+
+        return lines
+
+    def generate_performer_lines(self, performer, max_lines = 0):
+        # Prepare prompt
+        prompt = self.prepare_chatbot_prompt(performers=[performer],
+                                             max_lines=max_lines)
+
+        # Generate dialogue
+        # If performer has internal chatbot, use it to generate dialogue
+        # If performer has internal chatbot
+        if(performer.chatbot):
+            response = performer.chatbot.send_message(prompt)
+
+        # If performer has no internal chatbot, use performance's chatbot
+        else:
+            # If neither has a chatbot, raise exception
+            if(not self.chatbot):
+                raise Exception("No chatbot for performer or performance; " +
+                                performer.character_name)
+
+            # If performance has a chatbot, use it to generate dialogue
+            response = self.chatbot.send_message(prompt)
+            # response = self.chatbot.request_tokens()
+
+        # Log the response
+        self.log(response)
+
+        # Parse response into dialogue lines
+        lines = self.parse_chatbot_response(response)
+
+        # Add dialogue to performance
+        self.add_dialogue(lines)
 
         return lines
 
@@ -226,7 +255,8 @@ class Performance:
         #@REVISIT relies on file structure
         # prompt_string = open("botimprov/prompts/gpt4all.txt", "r").read()
         # prompt_string = open("botimprov/prompts/chatgpt.txt", "r").read()
-        prompt_string = open("botimprov/prompts/minimal.txt", "r").read()
+        # prompt_string = open("botimprov/prompts/minimal.txt", "r").read()
+        prompt_string = open("botimprov/prompts/minimal-predict.txt", "r").read()
 
         bot_characters = ""
         human_characters = ""
