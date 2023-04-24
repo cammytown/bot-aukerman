@@ -24,4 +24,4 @@ Please generate 4 lines of dialogue.
 
 DIALOGUE BEGINS HERE:
 
-{{dialogue_history}}
+{{working_script}}

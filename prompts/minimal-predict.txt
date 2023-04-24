@@ -9,7 +9,7 @@ The scene is as follows:
 {{extra_directions}}
 
 The script begins here:
-{{dialogue_history}}
+{{working_script}}
 
 EXT. PARK - DAY
 HOMELESS MAN: Well, shucks. I guess I'll just have to sleep on the bench.

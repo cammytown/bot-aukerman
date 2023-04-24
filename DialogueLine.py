@@ -9,7 +9,11 @@ class DialogueLine:
         self.parenthetical = parenthetical
 
     def __str__(self):
-        return f"{self.character_name}({self.parenthetical}): {self.dialogue}"
+        parenthetical = ""
+        if(self.parenthetical):
+            parenthetical = f"({self.parenthetical})"
+
+        return f"{self.character_name}{parenthetical}: {self.dialogue}"
 
     # def __repr__(self):
     #     return to_str(self)

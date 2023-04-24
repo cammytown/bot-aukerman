@@ -1,0 +1,8 @@
+The following is dialogue for a scene.
+
+The characters in the scene are as follows:
+{{bot_characters}}
+
+The script begins here:
+{{working_script}}
+

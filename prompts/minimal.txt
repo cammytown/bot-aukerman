@@ -11,5 +11,5 @@ SCENE DESCRIPTION:
 {{extra_directions}}
 
 CURRENT SCRIPT:
-{{dialogue_history}}
+{{working_script}}
 

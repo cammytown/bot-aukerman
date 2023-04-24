@@ -30,9 +30,9 @@ class BotPerformer(Performer):
         #     if(self.performance.tts.speakers):
         #         self.speaker = self.performance.tts.speakers[0]
 
-    def perform(self, dialogue):
-        print("Performing", self.character_name)
-        self.tts.say(dialogue, speaker=self.speaker)
+    # def perform(self, dialogue):
+    #     print("Performing", self.character_name)
+    #     self.tts.say(dialogue, speaker=self.speaker)
 
         # if(not self.chatbot):
         #     if(self.performance.chatbot):
