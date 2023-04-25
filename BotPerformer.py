@@ -1,9 +1,12 @@
 from typing import Optional
 from .Performer import Performer
-from chatbots.Chatbot import Chatbot #@REVISIT
+from chatbots import AutoChatbot #@REVISIT
 
 class BotPerformer(Performer):
-    chatbot: Optional[Chatbot] = None
+    # chatbot: Optional[AutoChatbot] = None
+    chatbot_index: int = 0
+    model_config: Optional[dict] = None
+
     tts = None #@REVISIT
     speaker: str
 
@@ -11,14 +14,16 @@ class BotPerformer(Performer):
         self,
         character_name,
         character_desc = "No description",
-        chatbot = None,
+        # chatbot = None,
+        model_config = None,
         tts = None,
         speaker = None
     ):
         # Initialize Performer:
         super().__init__(character_name, character_desc)
 
-        self.chatbot = chatbot
+        # self.chatbot = chatbot
+        self.model_config = model_config
 
         self.tts = tts
 

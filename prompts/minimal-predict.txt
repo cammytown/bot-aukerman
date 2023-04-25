@@ -3,15 +3,7 @@ The following is dialogue for a scene.
 The characters in the scene are as follows:
 {{bot_characters}}
 
-The scene is as follows:
-{{setting_description}}
-
 {{extra_directions}}
 
 The script begins here:
 {{working_script}}
-
-EXT. PARK - DAY
-HOMELESS MAN: Well, shucks. I guess I'll just have to sleep on the bench.
-FROG: I'm sorry, sir. I'm just a frog. I can't help you. Or can I?
-
