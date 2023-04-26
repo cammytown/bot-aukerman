@@ -1,6 +1,7 @@
 import os
 import datetime
 import random
+import re
 from typing import Optional, List
 
 from .Performer import Performer
@@ -336,11 +337,12 @@ class Performance:
                                              max_lines=max_lines)
 
         #@SCAFFOLDING
-        # stop_sequences = []
-        stop_regex = None
+        stop_sequences = []
         if max_lines == 1:
-            stop_regex = r"[\S]+\n"
-            # stop_sequences = ["\n"]
+            stop_sequences.append({
+                "type": "regex",
+                "value": r"[\S]+\n"
+            })
 
 
         chatbot = self.get_performer_chatbot(performer)
@@ -350,9 +352,7 @@ class Performance:
                     performer.character_name)
 
         response = chatbot.send_message(message=prompt,
-                                        stop_sequences=["\n"],
-                                        # stop_regex=stop_regex
-                                        )
+                                        stop_sequences=stop_sequences)
 
         # Log the response
         self.log(response)
