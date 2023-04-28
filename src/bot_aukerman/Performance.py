@@ -2,8 +2,10 @@ import os
 import datetime
 import random
 import re
+import appdirs
 from typing import Optional, List
 from enum import Enum
+from importlib import resources
 
 from .Performer import Performer
 from .HumanPerformer import HumanPerformer
@@ -30,7 +32,7 @@ class Performance:
     max_lines: int = 0
 
     # Where to save the script
-    logdir: str = ""
+    logdir: str
 
     # Chatbots to use for generating dialogue
     chatbots: List[AutoChatbot] = []
@@ -75,12 +77,18 @@ class Performance:
 
         # Initialize chatbot if model is set
         if model_config:
-            self.performance_chatbot_index = self.init_chatbot(model_config)
+            self.performance_chatbot_index = self._init_chatbot(model_config)
+
+        # If logdir not set, use appdirs
+        if(not self.logdir):
+            self.logdir = appdirs.user_log_dir("bot-aukerman", "bot-aukerman")
+
+        # Create logdir if it doesn't exist
+        os.makedirs(self.logdir, exist_ok=True)
 
         # Load current-dialogue-history.txt into working_script if it exists:
         if(resume_from_log):
             self.load_dialogue_history("current-dialogue-history.txt")
-
         # If logdir is set and current-dialogue-history.txt exists, rename it:
         elif(self.logdir):
             # Ensure logdir ends with a slash
@@ -96,7 +104,6 @@ class Performance:
 
                 os.rename(self.logdir + "current-dialogue-history.txt",
                           f"{self.logdir}dialogue-history_{file_creation_time}.txt")
-
 
     def load_dialogue_history(self, filename: str):
         if(os.path.isfile(self.logdir + filename)):
@@ -116,7 +123,7 @@ class Performance:
                         print(e)
                         continue
 
-    def init_chatbot(self, model_config: dict):
+    def _init_chatbot(self, model_config: dict):
         """
         Initialize chatbot.
         """
@@ -167,7 +174,7 @@ class Performance:
             if performer.model_config:
                 # Initialize chatbot
                 #@REVISIT best architecture?
-                performer.chatbot_index = self.init_chatbot(performer.model_config)
+                performer.chatbot_index = self._init_chatbot(performer.model_config)
 
         # If the performer is a HumanPerformer
         elif isinstance(performer, HumanPerformer):
@@ -193,7 +200,7 @@ class Performance:
         self.working_script.append(script_component)
 
     # Add one or multiple instances of dialogue to the dialogue history
-    def add_dialogue(self, dialogue):
+    def add_dialogue(self, dialogue) -> bool:
         """
         Add dialogue to the working script.
         """
@@ -204,7 +211,7 @@ class Performance:
             for line in dialogue:
                 self.add_dialogue(line)
 
-            return #@REVISIT kinda ugly architecture
+            return True #@REVISIT kinda ugly architecture
 
         # If dialogue is a DialogueLine
         if isinstance(dialogue, DialogueLine):
@@ -219,7 +226,8 @@ class Performance:
             except ValueError as e:
                 print("ERROR: invalid dialogue line: ", dialogue)
                 print(e)
-                return
+                return False
+
         # If dialogue is not a DialogueLine or a string
         else:
             print("ERROR: Invalid dialogue type:", type(dialogue))
@@ -242,6 +250,8 @@ class Performance:
                 elif isinstance(dialogue, list):
                     for line in dialogue:
                         f.write(line.to_str() + self.break_dialogue_line())
+
+        return True
 
     def generate_dialogue(self, max_lines = 0):
         """
@@ -522,21 +532,13 @@ class Performance:
 
         match chatbot.name.lower():
             case "gpt4all":
-                #@REVISIT relies on file structure
-                prompt_string = open("botimprov/prompts/gpt4all.txt", "r").read()
+                prompt_string = resources.read_text("bot_aukerman.prompts", "gpt4all.txt")
             case "rwkv":
-                prompt_string = open("botimprov/prompts/rwkv-raven.txt", "r").read()
+                prompt_string = resources.read_text("bot_aukerman.prompts", "rwkv-raven.txt")
             case "gpt2":
-                # prompt_string = open("botimprov/prompts/pygmalion.txt", "r").read()
-                prompt_string = open("botimprov/prompts/gpt2.txt", "r").read()
-            # case "openai":
-            #     prompt_string = open("botimprov/prompts/chatgpt.txt", "r").read()
-            # case "llamacpp":
-            #     prompt_string = open("botimprov/prompts/llamacpp.txt", "r").read()
+                prompt_string = resources.read_text("bot_aukerman.prompts", "gpt2.txt")
             case _:
-                # prompt_string = open("botimprov/prompts/chatgpt.txt", "r").read()
-                # prompt_string = open("botimprov/prompts/minimal.txt", "r").read()
-                prompt_string = open("botimprov/prompts/minimal-predict.txt", "r").read()
+                prompt_string = resources.read_text("bot_aukerman.prompts", "minimal-predict.txt")
 
         return prompt_string
 
