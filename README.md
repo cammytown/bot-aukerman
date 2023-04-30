@@ -1,17 +1,17 @@
 Under heavy development.
 
 # TODO
-## cases to handle
-- sometimes you get things like CHARACTER ONE: CHARACTER TWO: [dialogue]
-    - maybe only use last character name
-- tendency of certain models to put \n after character name / before dialogue
-    - decrease likelihood of \n token?
-- scene headers
+- decrease likelihood of \n token?
+- repetition penalty
+- recognize scene headers and scene action
+- properly incorporate TTS in a way suitable for a public package
+- properly expose API/configurability for OpenAI/etc. api key setup
+- documentation
 
 ## chatbots
 - accept parameters that determine chatbot parameters like temperature in a way that is abstracted away from the behavior of specific chatbots such that users can specify parameters like "incoherence/creativity" and have it get mapped to specific parameters for specific LLM models
 
-## BOT PERFORMANCES
+## bot performances
 - ways to suggest that the characters do or say particular things or behave in particular ways during the course of a performance
 - other things to track within Performer (mood, conflict, inventory)?
 
@@ -46,4 +46,4 @@ the phrase "Well, well, well", but won't know where to stop. This will slowly
 inspire other characters to behave similarly; like a mind virus.
 
 # NOTES / POINTS OF INTEREST
-- Named after Scott Aukerman as a tribute to his legendary work hosting legendary improvisational comedy show **Comedy Bang! Bang!**.
+- Named after Scott Aukerman as tribute to his work as creator and host of legendary improvisational comedy show **Comedy Bang! Bang!**.
