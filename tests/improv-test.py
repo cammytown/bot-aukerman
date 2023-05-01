@@ -1,8 +1,3 @@
-import sys
-
-# Add terminal working directory to path:
-sys.path.append('./')
-
 from bot_aukerman import Performance, HumanPerformer, BotPerformer
 
 verbose = True
@@ -11,15 +6,23 @@ if verbose:
     print("Initializing performance...")
 
 # Initialize a performance
-performance = Performance(logdir = "logs/bot_aukerman/",
-                          model_config = {
-                              "name": "gpt2",
-                              # "name": "text-ada-001",
-                              # "remote": "openai",
-                              # "name": "decapoda-research/llama-7b-hf",
-                              # "model" = "PygmalionAI/pygmalion-350m"
-                              # "model" = "gpt2-large"
-                              },
+# model_config = { "name": "gpt2", }
+
+model_config = {
+    "name": "text-ada-001",
+    "remote": "openai",
+}
+
+# model_config = {
+    # "name": "text-ada-001",
+    # "remote": "openai",
+    # "name": "decapoda-research/llama-7b-hf",
+    # "model" = "PygmalionAI/pygmalion-350m"
+    # "model" = "gpt2-large"
+# },
+
+performance = Performance(#logdir = "logs/bot_aukerman/",
+                          model_config = model_config,
                           resume_from_log = False)
 
 if verbose:

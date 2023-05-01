@@ -83,6 +83,8 @@ class Performance:
         if(not self.logdir):
             self.logdir = appdirs.user_log_dir("bot-aukerman", "bot-aukerman")
 
+        print(f"Logs directory: {self.logdir}") #@TODO add info about how to change
+
         # Create logdir if it doesn't exist
         os.makedirs(self.logdir, exist_ok=True)
 
