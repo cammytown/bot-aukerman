@@ -1,3 +1,7 @@
+# used internally to bring chatbots module into scope until proper packaging is done:
+import sys
+sys.path.append('./')
+
 from bot_aukerman import Performance, HumanPerformer, BotPerformer
 
 verbose = True
@@ -21,8 +25,8 @@ model_config = {
     # "model" = "gpt2-large"
 # },
 
-performance = Performance(#logdir = "logs/bot_aukerman/",
-                          model_config = model_config,
+performance = Performance(model_config = model_config,
+                          logdir = "logs/bot_aukerman/",
                           resume_from_log = False)
 
 if verbose:
