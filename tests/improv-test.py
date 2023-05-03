@@ -10,12 +10,12 @@ if verbose:
     print("Initializing performance...")
 
 # Initialize a performance
-# model_config = { "name": "gpt2", }
+model_config = { "name": "gpt2", }
 
-model_config = {
-    "name": "text-ada-001",
-    "remote": "openai",
-}
+# model_config = {
+#     "name": "text-ada-001",
+#     "remote": "openai",
+# }
 
 performance = Performance(model_config = model_config,
                           logdir = "logs/bot_aukerman/",

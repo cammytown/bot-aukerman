@@ -1,9 +1,13 @@
-from .ScriptComponent import ScriptComponent, SceneHeading, Dialogue, Action
+from typing import List
+from .ScriptComponent import ScriptComponent
+from .SceneHeader import SceneHeader
+from .Dialogue import Dialogue
+from .SceneAction import SceneAction
 
 #@TODO rename and move to isolated module; dramaparse,parsedrama,rescribe
 class Interpreter:
     @staticmethod
-    def interpret(text, flags = {}):
+    def interpret(text, flags = {}) -> List[ScriptComponent]:
         script_components = []
 
         # For each line in response
@@ -22,58 +26,75 @@ class Interpreter:
         for line_index, line in enumerate(lines):
             line = line.strip()
 
+            # if __debug__:
+            #     print("context:", context, " | line:", line)
+
             match context:
-                case "none" | "character_name":
+                case "none":
                     # If line is empty
                     if(len(line) == 0):
                         continue
 
-                    # If all uppercase
-                    #@TODO hacky solution to gauge likelihood of being a
-                    #character name probably do more; at least check if non-caps
-                    #name is in character list
-                    elif(line.isupper()):
-                        working_component["character_name"] = line
-                        context = "dialogue"
+                    # Try to create script component from line
+                    try:
+                        component = Interpreter.auto_create_component(line)
+                        script_components.append(component)
 
-                    else:
-                        #@TODO check if in character list
-                        continue
+                    except ValueError:
+                        print("WARNING: could not auto create component from " \
+                                + "line: " + line)
+
+                        # If all uppercase #@TODO hacky solution  
+                        if(line.isupper()):
+                            # Assume character name
+                            working_component["character_name"] = line
+                            context = "dialogue"
+                        else:
+                            #@TODO check if in character list; etc.
+                            pass
 
                 case "dialogue" | "dialogue_continued":
                     # If line is empty
                     if(len(line) == 0):
+                        # If expecting initial dialogue (none encountered yet)
                         if(context == "dialogue"):
                             # If last line was also blank
                             if(line_index > 0 and len(lines[line_index - 1]) == 0):
+                                # Reset context after two blank lines
                                 context = "none"
 
-                        if(context == "dialogue_continued"):
+                        # If expecting more dialogue (some already supplied)
+                        elif(context == "dialogue_continued"):
                             #@REVISIT
-                            component = Interpreter.close_component(working_component,
-                                                                    context)
+                            # Create component from working component dict
+                            component = Interpreter.close_working_component(working_component,
+                                                                            context)
                             script_components.append(component)
                             context = "character_name"
 
-                        # Skip blank line
-                        continue
-
-                    # If line is all uppercase
-                    elif(line.isupper()):
-                        print("WARNING: dialogue line is all uppercase: " \
-                                + line)
-
-                    # If line is parenthetical
-                    #@TODO multi-line parentheticals
-                    elif(line[0] == "(" and line[-1] == ")"):
-                        working_component["parenthetical"] = line[1:-1]
-                        context = "dialogue"
-                        continue
-
-                    # If line is dialogue
+                    # If line is not empty
                     else:
-                        working_component["dialogue"] = line
-                        context = "dialogue_continued"
+                        # If line is all uppercase
+                        if(line.isupper()):
+                            print("WARNING: dialogue line is all uppercase: " \
+                                    + line)
+
+                        # If line is parenthetical
+                        #@TODO multi-line parentheticals
+                        elif(line[0] == "(" and line[-1] == ")"):
+                            working_component["parenthetical"] = line[1:-1]
+                            context = "dialogue"
+                            continue
+
+                        # If line is dialogue
+                        else:
+                            working_component["dialogue"] = line
+                            context = "dialogue_continued"
+
+                case _:
+                    raise ValueError("invalid context: " + context)
+
+        return script_components
 
         # # If there is no character name
         # if(len(character_name) == 0):
@@ -101,6 +122,30 @@ class Interpreter:
             #     print("WARNING: Invalid dialogue line:", line)
             #     print(e)
             #     continue
+
+    @staticmethod
+    def auto_create_component(text):
+        component_classes = [SceneHeader, Dialogue] #, SceneAction]
+
+        for component_class in component_classes:
+            try:
+                component = component_class.from_str(text)
+                return component
+            except ValueError:
+                pass
+
+        raise ValueError("could not auto create component from text: " + text)
+
+    @staticmethod
+    def close_working_component(component, context):
+        match context:
+            case "dialogue_continued":
+                # Filter out empty values
+                param_names = ["character_name", "dialogue", "parenthetical"]
+                params = {k: v for k, v in component.items() if k in param_names}
+                return Dialogue(**params)
+            case _:
+                raise ValueError("invalid context: " + context)
 
     def parse_single_line(self, text, flags):
         # Split on colon
@@ -148,13 +193,3 @@ class Interpreter:
         if(len(dialogue) > 2 and dialogue[0] == "\"" and dialogue[-1] == "\""):
             dialogue = dialogue[1:-1]
 
-    @staticmethod
-    def close_component(component, context):
-        match context:
-            case "dialogue_continued":
-                # Filter out empty values
-                param_names = ["character_name", "dialogue", "parenthetical"]
-                params = {k: v for k, v in component.items() if k in param_names}
-                return Dialogue(**params)
-            case _:
-                raise ValueError("invalid context: " + context)

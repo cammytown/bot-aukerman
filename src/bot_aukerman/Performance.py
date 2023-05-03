@@ -11,10 +11,10 @@ from .Performer import Performer
 from .HumanPerformer import HumanPerformer
 from .BotPerformer import BotPerformer
 
-from .ScriptComponent import ScriptComponent
+from .ScriptComponent import ScriptComponent #, SceneHeader, Dialogue, Action
 from .SceneHeader import SceneHeader
 from .SceneAction import SceneAction
-from .DialogueLine import DialogueLine
+from .Dialogue import Dialogue
 
 from .Interpreter import Interpreter
 
@@ -122,15 +122,18 @@ class Performance:
                 # Split on newlines
                 file_lines = dialogue_file_str.splitlines()
 
-                # Create DialogueLine objects from each line
-                for file_line in file_lines:
-                    try:
-                        dialogue_line = DialogueLine.from_str(file_line)
-                        self.working_script.append(dialogue_line)
-                    except ValueError as e:
-                        print("WARNING: invalid dialogue line in file: ", file_line)
-                        print(e)
-                        continue
+                script_components = Interpreter.interpret(file_lines)
+                self.working_script = script_components
+
+                # # Create Dialogue objects from each line
+                # for file_line in file_lines:
+                #     try:
+                #         # dialogue_line = Dialogue.from_str(file_line)
+                #         self.working_script.append(dialogue_line)
+                #     except ValueError as e:
+                #         print("WARNING: invalid dialogue line in file: ", file_line)
+                #         print(e)
+                #         continue
 
     def _init_chatbot(self, model_config: dict):
         """
@@ -216,32 +219,32 @@ class Performance:
 
         # If dialogue is a list of lines
         if isinstance(dialogue, list):
-            # Add each DialogueLine to the dialogue history
+            # Add each Dialogue to the dialogue history
             for line in dialogue:
                 self.add_dialogue(line)
 
             return True #@REVISIT kinda ugly architecture
-
-        # If dialogue is a DialogueLine
-        if isinstance(dialogue, DialogueLine):
-            pass
         # If dialogue is a string
         elif isinstance(dialogue, str):
-            # Try to convert the string to a DialogueLine
+            # Try to convert the string to a Dialogue
             try:
-                dialogue = DialogueLine.from_str(dialogue)
+                dialogue = Dialogue.from_str(dialogue)
 
-            # If the string is not a valid DialogueLine
+            # If the string is not a valid Dialogue
             except ValueError as e:
                 print("ERROR: invalid dialogue line: ", dialogue)
                 print(e)
                 return False
 
-        # If dialogue is not a DialogueLine or a string
+        # If dialogue is a Dialogue
+        elif isinstance(dialogue, Dialogue):
+            pass
+
+        # If dialogue is not a Dialogue or a string
         else:
             print("ERROR: Invalid dialogue type:", type(dialogue))
 
-        # Add the DialogueLine to the dialogue history
+        # Add the Dialogue to the dialogue history
         self.working_script.append(dialogue)
 
         # Add performer to character_history
@@ -254,8 +257,8 @@ class Performance:
         # response = response.replace("\n\n", "\n").strip()
 
         # Write dialogue line to file
-        with open(self.logdir + "current-dialogue-history.txt", "w+") as f:
-            if isinstance(dialogue, DialogueLine):
+        with open(self.logdir + "current-dialogue-history.txt", "a+") as f:
+            if isinstance(dialogue, Dialogue):
                 f.write(dialogue.to_str() + self.break_dialogue_line())
             elif isinstance(dialogue, list):
                 for line in dialogue:
@@ -268,7 +271,7 @@ class Performance:
         Generate new dialogue for characters and add it to the working script.
         """
 
-        lines = [] #@REVISIT architecture
+        dialogue_components = [] #@REVISIT architecture
 
         #@TODO optionally intelligently decide the next character, maybe
         # with aid of chatbot
@@ -284,12 +287,12 @@ class Performance:
             if __debug__:
                 print("Generating dialogue for", bot_performer.character_name)
 
-            lines = self.generate_performer_lines(bot_performer, 1)
+            dialogue_components = self.generate_performer_lines(bot_performer, 1)
 
             # Add dialogue lines to dialogue history
-            self.add_dialogue(lines)
+            self.add_dialogue(dialogue_components)
 
-        return lines
+        return dialogue_components
 
     def pick_next_bot_performer(self):
         """
@@ -342,7 +345,7 @@ class Performance:
 
         Returns
         -------
-        lines : list of DialogueLine
+        lines : list of Dialogue
             The generated dialogue lines.
         """
 
@@ -374,14 +377,24 @@ class Performance:
                                         stop_sequences=stop_sequences)
 
         # Log the response
-        self.log("=== Chatbot Response: ===\n" + response + "=== END ===")
+        self.log("=== Chatbot Response: ===\n" + response + "=== END ===\n")
 
         # Parse response into dialogue lines
-        lines = self.parse_chatbot_response(response,
+        script_components = self.parse_chatbot_response(response,
                                             chatbot=chatbot,
                                             next_performer=performer)
 
-        return lines
+        # Filter for Dialogue components
+        dialogue_components = []
+        for component in script_components:
+            if isinstance(component, Dialogue):
+                dialogue_components.append(component)
+            else:
+                if __debug__:
+                    print("WARNING: non-Dialogue component in bot response:",
+                          component)
+
+        return dialogue_components
 
     def prepare_chatbot_prompt(self,
                                next_performer: Optional[BotPerformer] = None,
@@ -421,12 +434,7 @@ class Performance:
             #@REVISIT placement
             if(next_performer):
                 prompt += next_performer.character_name.upper()
-
-                if self.script_format == ScriptFormat.MINIMAL:
-                    prompt += ": "
-                elif self.script_format == ScriptFormat.FOUNTAIN:
-                    prompt += "\n"
-
+                prompt += self.break_character_name()
 
         # If chatbot context has been initialized
         else:
@@ -451,19 +459,21 @@ class Performance:
                 # If next_performer is set, prepare a dialogue line
                 if next_performer:
                     prompt += next_performer.character_name.upper()
-
-                    if self.script_format == ScriptFormat.MINIMAL:
-                        prompt += ": "
-                    elif self.script_format == ScriptFormat.FOUNTAIN:
-                        prompt += "\n"
-                    else:
-                        # print("Unknown script format:", self.script_format)
-                        pass
+                    prompt += self.break_character_name()
 
                 # Update chatbot state
                 self.chatbot_states[chatbot_index] = len(self.working_script)
 
         return prompt
+
+    #@REVISIT architecture
+    def break_character_name(self) -> str:
+        if self.script_format == ScriptFormat.MINIMAL:
+            return ": "
+        elif self.script_format == ScriptFormat.FOUNTAIN:
+            return "\n"
+        else:
+            raise Exception("Unknown script format:", self.script_format)
 
     #@REVISIT architecture
     def break_dialogue_line(self):
@@ -476,8 +486,7 @@ class Performance:
         elif self.script_format == ScriptFormat.FOUNTAIN:
             return "\n\n"
         else:
-            # print("Unknown script format:", self.script_format)
-            return ""
+            raise Exception("Unknown script format:", self.script_format)
 
     def prepare_context(self,
                         chatbot,
@@ -564,8 +573,6 @@ class Performance:
                                chatbot: AutoChatbot,
                                next_performer: Optional[Performer] = None):
 
-        dialogue_lines = []
-
         # Parser flags
         flags = {
             "ignore_first_char_newline": False,
@@ -585,54 +592,57 @@ class Performance:
         # If next_performer, prepend name to response to match chatbot query
         if next_performer:
             #@REVISIT ugly architecture
-            response = next_performer.character_name.upper() + ": " + response
+            character_name = next_performer.character_name.upper() \
+                    + self.break_character_name()
+
+            response = character_name + response
 
         script_components = Interpreter.interpret(response, flags)
 
-        return script_lines
+        return script_components
 
-    def parse_single_line(self, line: str, flags: dict):
-        if flags["discard_multiple_char_names"]:
-            # Extract character headers from line into list
-            header_regex = r"[A-Z ]+:"
-            character_headers = re.findall(header_regex, line)
+    # def parse_single_line(self, line: str, flags: dict):
+    #     if flags["discard_multiple_char_names"]:
+    #         # Extract character headers from line into list
+    #         header_regex = r"[A-Z ]+:"
+    #         character_headers = re.findall(header_regex, line)
 
-            # If there are multiple character headers
-            if(len(character_headers) > 1):
-                # Split line on instances of character headers
-                inner_lines = re.split(header_regex, line)
+    #         # If there are multiple character headers
+    #         if(len(character_headers) > 1):
+    #             # Split line on instances of character headers
+    #             inner_lines = re.split(header_regex, line)
 
-                # Remove text before first character header
-                #@DOUBLE-CHECK
-                inner_lines = inner_lines[1:]
+    #             # Remove text before first character header
+    #             #@DOUBLE-CHECK
+    #             inner_lines = inner_lines[1:]
 
-                if __debug__:
-                    print("character_headers:", character_headers)
-                    print("inner_lines:", inner_lines)
+    #             if __debug__:
+    #                 print("character_headers:", character_headers)
+    #                 print("inner_lines:", inner_lines)
 
-                # Attempt to validate each inner line
-                for i, inner_line in enumerate(inner_lines):
-                    # If inner line is empty, skip
-                    if(inner_line == ""):
-                        continue
+    #             # Attempt to validate each inner line
+    #             for i, inner_line in enumerate(inner_lines):
+    #                 # If inner line is empty, skip
+    #                 if(inner_line == ""):
+    #                     continue
 
-                    # Prepend character header to inner line
-                    #@REVISIT i-1 is always correct, right?
-                    inner_line = character_headers[i-1].strip() \
-                            + inner_line
+    #                 # Prepend character header to inner line
+    #                 #@REVISIT i-1 is always correct, right?
+    #                 inner_line = character_headers[i-1].strip() \
+    #                         + inner_line
 
-                    # Parse inner line into a DialogueLine object
-                    try:
-                        line_obj = DialogueLine.from_str(inner_line)
-                        dialogue_lines.append(line_obj)
-                    except ValueError as e: #@REVISIT ugly
-                        continue
+    #                 # Parse inner line into a Dialogue object
+    #                 try:
+    #                     line_obj = Dialogue.from_str(inner_line)
+    #                     dialogue_lines.append(line_obj)
+    #                 except ValueError as e: #@REVISIT ugly
+    #                     continue
 
-            # Parse line into a DialogueLine object
-            line_obj = DialogueLine.from_str(line)
-            dialogue_lines.append(line_obj)
+    #         # Parse line into a Dialogue object
+    #         line_obj = Dialogue.from_str(line)
+    #         dialogue_lines.append(line_obj)
 
-        return dialogue_lines
+    #     return dialogue_lines
 
 
     def perform(self):
@@ -660,7 +670,7 @@ class Performance:
                 continue
 
             # If line is a dialogue line
-            elif isinstance(script_component, DialogueLine):
+            elif isinstance(script_component, Dialogue):
                 # Check if performer exists in performance
                 if script_component.character_name not in self.performers:
                     raise Exception("Performer",

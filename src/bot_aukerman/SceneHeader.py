@@ -40,6 +40,9 @@ class SceneHeader(ScriptComponent):
 
             # Remove location prefix from header string
             header_string = header_string[location_prefix_match.end():]
+        else:
+            raise ValueError("no location prefix found in header_string: " \
+                             + header_string)
 
         # Split on dash
         dash_split = header_string.split("-", 1)

@@ -1,6 +1,6 @@
 from .ScriptComponent import ScriptComponent
 
-class DialogueLine(ScriptComponent):
+class Dialogue(ScriptComponent):
     character_name: str
     dialogue: str
     parenthetical: str
@@ -40,13 +40,13 @@ class DialogueLine(ScriptComponent):
     def from_str(dialogue_line_str):
         # Try to parse as single line
         try:
-            return DialogueLine.from_single_line(dialogue_line_str)
+            return Dialogue.from_single_line(dialogue_line_str)
         except ValueError:
             pass
 
         # Try to parse as multi-line
         try:
-            return DialogueLine.from_multi_line(dialogue_line_str)
+            return Dialogue.from_multi_line(dialogue_line_str)
         except ValueError:
             pass
 
@@ -101,7 +101,7 @@ class DialogueLine(ScriptComponent):
         if(len(dialogue) > 2 and dialogue[0] == "\"" and dialogue[-1] == "\""):
             dialogue = dialogue[1:-1]
 
-        return DialogueLine(character_name, dialogue, parenthetical)
+        return Dialogue(character_name, dialogue, parenthetical)
 
     @staticmethod
     def from_multi_line(dialogue_string):
@@ -180,4 +180,4 @@ class DialogueLine(ScriptComponent):
         if(len(dialogue) > 2 and dialogue[0] == "\"" and dialogue[-1] == "\""):
             dialogue = dialogue[1:-1]
 
-        return DialogueLine(character_name, dialogue, parenthetical)
+        return Dialogue(character_name, dialogue, parenthetical)
