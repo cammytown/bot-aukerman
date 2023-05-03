@@ -17,14 +17,6 @@ model_config = {
     "remote": "openai",
 }
 
-# model_config = {
-    # "name": "text-ada-001",
-    # "remote": "openai",
-    # "name": "decapoda-research/llama-7b-hf",
-    # "model" = "PygmalionAI/pygmalion-350m"
-    # "model" = "gpt2-large"
-# },
-
 performance = Performance(model_config = model_config,
                           logdir = "logs/bot_aukerman/",
                           resume_from_log = False)

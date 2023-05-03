@@ -16,8 +16,15 @@ from .SceneHeader import SceneHeader
 from .SceneAction import SceneAction
 from .DialogueLine import DialogueLine
 
+from .Interpreter import Interpreter
+
 from chatbots import AutoChatbot
-from coqui.CoquiImp import CoquiImp
+
+try:
+    from coqui.CoquiImp import CoquiImp
+except ImportError:
+    print("WARNING: failed to import coqui; TTS will not be available")
+    CoquiImp = None #@REVISIT architecture
 
 ScriptFormat = Enum("ScriptFormat", "MINIMAL, FOUNTAIN")
 
@@ -241,17 +248,18 @@ class Performance:
         self.character_history.append(dialogue.character_name.upper())
 
         # If logdir is set, write to file
-        if(self.logdir):
-            # Remove empty lines and strip surrounding whitespace from response
-            # response = response.replace("\n\n", "\n").strip()
+        # if(self.logdir):
 
-            # Write dialogue line to file
-            with open(self.logdir + "current-dialogue-history.txt", "a") as f:
-                if isinstance(dialogue, DialogueLine):
-                    f.write(dialogue.to_str() + self.break_dialogue_line())
-                elif isinstance(dialogue, list):
-                    for line in dialogue:
-                        f.write(line.to_str() + self.break_dialogue_line())
+        # Remove empty lines and strip surrounding whitespace from response
+        # response = response.replace("\n\n", "\n").strip()
+
+        # Write dialogue line to file
+        with open(self.logdir + "current-dialogue-history.txt", "w+") as f:
+            if isinstance(dialogue, DialogueLine):
+                f.write(dialogue.to_str() + self.break_dialogue_line())
+            elif isinstance(dialogue, list):
+                for line in dialogue:
+                    f.write(line.to_str() + self.break_dialogue_line())
 
         return True
 
@@ -362,6 +370,7 @@ class Performance:
 
         # Send prompt to chatbot
         response = chatbot.send_message(message=prompt,
+                                        n_tokens=28,
                                         stop_sequences=stop_sequences)
 
         # Log the response
@@ -411,7 +420,12 @@ class Performance:
             # If next_performer is set, prepare a dialogue line for it
             #@REVISIT placement
             if(next_performer):
-                prompt += next_performer.character_name.upper() + ": "
+                prompt += next_performer.character_name.upper()
+
+                if self.script_format == ScriptFormat.MINIMAL:
+                    prompt += ": "
+                elif self.script_format == ScriptFormat.FOUNTAIN:
+                    prompt += "\n"
 
 
         # If chatbot context has been initialized
@@ -552,11 +566,13 @@ class Performance:
 
         dialogue_lines = []
 
+        # Parser flags
         flags = {
             "ignore_first_char_newline": False,
             "discard_multiple_char_names": False
         }
 
+        # Set flags based on chatbot
         match chatbot.name.lower():
             case "gpt2":
                 flags["ignore_first_char_newline"] = True
@@ -566,78 +582,58 @@ class Performance:
                 print("WARNING: No flags set for chatbot", chatbot.name)
                 pass
 
-        if flags["ignore_first_char_newline"]:
-            # If first character of response is a newline, remove it
-            #@REVISIT I'm not clear on why gpt3 sometimes desperately wants to 
-            #@ start a newline after a character name. I presume it has encountered
-            #@ a lot of dialogue with the format CHARACTER\nDIALOGUE (i.e. .fountain)
-            #@ We'll want a better solution for this
-            #@TODO make this optional at least?
-            if(response[0] == "\n"):
-                response = response[1:]
-
         # If next_performer, prepend name to response to match chatbot query
         if next_performer:
             #@REVISIT ugly architecture
             response = next_performer.character_name.upper() + ": " + response
 
-        # For each line in response
-        for line in response.split("\n"):
-            # If line contains a colon
-            if(":" in line):
-                try:
-                    if flags["discard_multiple_char_names"]:
-                        # Extract character headers from line into list
-                        header_regex = r"[A-Z ]+:"
-                        character_headers = re.findall(header_regex, line)
+        script_components = Interpreter.interpret(response, flags)
 
-                        # If there are multiple character headers
-                        if(len(character_headers) > 1):
-                            # Split line on instances of character headers
-                            inner_lines = re.split(header_regex, line)
+        return script_lines
 
-                            # Remove text before first character header
-                            #@DOUBLE-CHECK
-                            inner_lines = inner_lines[1:]
+    def parse_single_line(self, line: str, flags: dict):
+        if flags["discard_multiple_char_names"]:
+            # Extract character headers from line into list
+            header_regex = r"[A-Z ]+:"
+            character_headers = re.findall(header_regex, line)
 
-                            if __debug__:
-                                print("character_headers:", character_headers)
-                                print("inner_lines:", inner_lines)
+            # If there are multiple character headers
+            if(len(character_headers) > 1):
+                # Split line on instances of character headers
+                inner_lines = re.split(header_regex, line)
 
-                            # Attempt to validate each inner line
-                            for i, inner_line in enumerate(inner_lines):
-                                # If inner line is empty, skip
-                                if(inner_line == ""):
-                                    continue
+                # Remove text before first character header
+                #@DOUBLE-CHECK
+                inner_lines = inner_lines[1:]
 
-                                # Prepend character header to inner line
-                                #@REVISIT i-1 is always correct, right?
-                                inner_line = character_headers[i-1].strip() \
-                                        + inner_line
+                if __debug__:
+                    print("character_headers:", character_headers)
+                    print("inner_lines:", inner_lines)
 
-                                # Parse inner line into a DialogueLine object
-                                try:
-                                    line_obj = DialogueLine.from_str(inner_line)
-                                    dialogue_lines.append(line_obj)
-                                except ValueError as e: #@REVISIT ugly
-                                    continue
+                # Attempt to validate each inner line
+                for i, inner_line in enumerate(inner_lines):
+                    # If inner line is empty, skip
+                    if(inner_line == ""):
+                        continue
 
-                            # Finished parsing line
-                            continue
+                    # Prepend character header to inner line
+                    #@REVISIT i-1 is always correct, right?
+                    inner_line = character_headers[i-1].strip() \
+                            + inner_line
 
-                    # Parse line into a DialogueLine object
-                    line_obj = DialogueLine.from_str(line)
-                    dialogue_lines.append(line_obj)
-                except ValueError as e:
-                    print("WARNING: Invalid dialogue line:", line)
-                    print(e)
-                    continue
+                    # Parse inner line into a DialogueLine object
+                    try:
+                        line_obj = DialogueLine.from_str(inner_line)
+                        dialogue_lines.append(line_obj)
+                    except ValueError as e: #@REVISIT ugly
+                        continue
 
-            # If line does not contain a colon
-            else:
-                continue
+            # Parse line into a DialogueLine object
+            line_obj = DialogueLine.from_str(line)
+            dialogue_lines.append(line_obj)
 
         return dialogue_lines
+
 
     def perform(self):
         """
