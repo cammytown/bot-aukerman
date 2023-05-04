@@ -17,6 +17,11 @@ model_config = { "name": "gpt2", }
 #     "remote": "openai",
 # }
 
+# model_config = {
+#     "name": "text-curie-001",
+#     "remote": "openai",
+# }
+
 performance = Performance(model_config = model_config,
                           logdir = "logs/bot_aukerman/",
                           resume_from_log = False)
@@ -34,9 +39,7 @@ talking_frog = BotPerformer(
     # chatbot=llamacpp_bot,
     character_name="Frog",
     character_desc="A talking frog; extremely intelligent but very sarcastic and patronizing. Flawed character.",
-    # model_config = {
-    #     "name": "gpt2",
-    # },
+    model_config={ "name": "gpt2", },
     # speaker=performance.tts.tts.speakers[2],
 )
 
@@ -44,10 +47,8 @@ homeless_man = BotPerformer(
     # chatbot=llamacpp_bot,
     character_name="Homeless Man",
     character_desc="A homeless man; distraught about existential concerns and the state of society. Hates money. Hates capitalism. Refuses to participate.",
+    model_config={ "name": "text-ada-001", "remote": "openai" },
     # speaker=performance.tts.tts.speakers[1],
-    # model_config = {
-    #     "name": "gpt2",
-    # },
 )
 
 if verbose:

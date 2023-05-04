@@ -64,6 +64,10 @@ class Performance:
     # Characters who have spoken
     character_history: list = []
 
+    # # The performer queued to have dialogue generated
+    # #@REVISIT naming
+    # queued_performer: Performer
+
     #performance_type #@TODO i.e. round-robin, random, personality-dependent, etc.
 
     def __init__(
@@ -77,18 +81,25 @@ class Performance:
         self.performers = {}
 
         self.logdir = logdir
-        self.model_config = model_config
 
         # self.tts = CoquiImp("tts_models/multilingual/multi-dataset/your_tts")
         self.context_initialized = False
 
-        # Initialize chatbot if model is set
-        if model_config:
-            self.performance_chatbot_index = self._init_chatbot(model_config)
-
         # If logdir not set, use appdirs
         if(not self.logdir):
             self.logdir = appdirs.user_log_dir("bot-aukerman", "bot-aukerman")
+
+        # Initialize chatbot if model is set
+        if model_config:
+            # Because we will parse the response and feed it back to chatbot,
+            # we want chatbot's unparsed response kept out of context
+            model_config["keep_response_in_context"] = False
+
+            # Initialize chatbot, save its index in chatbots[]
+            self.performance_chatbot_index = self._init_chatbot(model_config)
+
+        # Save model config in class property #@REVISIT necessary?
+        self.model_config = model_config
 
         print(f"Logs directory: {self.logdir}") #@TODO add info about how to change
 
@@ -200,7 +211,8 @@ class Performance:
 
         # Add scene header to working script
         script_component = SceneHeader.from_str(scene_header)
-        self.working_script.append(script_component)
+
+        self.add_component(script_component)
 
     def add_description(self, description: str):
         """
@@ -209,7 +221,8 @@ class Performance:
 
         # Add description to working script
         script_component = SceneAction.from_str(description)
-        self.working_script.append(script_component)
+
+        self.add_component(script_component)
 
     # Add one or multiple instances of dialogue to the dialogue history
     def add_dialogue(self, dialogue) -> bool:
@@ -244,25 +257,23 @@ class Performance:
         else:
             print("ERROR: Invalid dialogue type:", type(dialogue))
 
-        # Add the Dialogue to the dialogue history
-        self.working_script.append(dialogue)
+        self.add_component(dialogue)
 
         # Add performer to character_history
         self.character_history.append(dialogue.character_name.upper())
 
-        # If logdir is set, write to file
-        # if(self.logdir):
+    def add_component(self, component: ScriptComponent):
+        """
+        Add a script component to the working script.
+        """
 
-        # Remove empty lines and strip surrounding whitespace from response
-        # response = response.replace("\n\n", "\n").strip()
+        # Add component to working script
+        self.working_script.append(component)
 
         # Write dialogue line to file
         with open(self.logdir + "current-dialogue-history.txt", "a+") as f:
-            if isinstance(dialogue, Dialogue):
-                f.write(dialogue.to_str() + self.break_dialogue_line())
-            elif isinstance(dialogue, list):
-                for line in dialogue:
-                    f.write(line.to_str() + self.break_dialogue_line())
+            f.write(component.to_str())
+            f.write(self.break_component())
 
         return True
 
@@ -276,7 +287,7 @@ class Performance:
         #@TODO optionally intelligently decide the next character, maybe
         # with aid of chatbot
 
-        assert len(self.bot_performers) > 0, "No bot performers to generate dialogue for."
+        assert len(self.bot_performers) > 0, "No bot performers"
 
         #@TODO combine requests when possible (i.e. loop through characters
         # and determine who shares chatbots, send minimal chatbot queries)
@@ -309,6 +320,11 @@ class Performance:
         # Remove the last performer from the list of bot performers if bot
         #@REVISIT architecture
         last_character_name = self.character_history[-1]
+        if last_character_name not in self.performers:
+            #@TODO handle this better; maybe add character to performers?
+            print("WARNING: last character not in known performers")
+            return random.choice(bot_performers)
+
         last_performer = self.performers[last_character_name.upper()]
         if last_performer in bot_performers:
             bot_performers.remove(last_performer)
@@ -369,7 +385,7 @@ class Performance:
                     + performer.character_name)
 
         # Log the prompt
-        self.log("=== Chatbot Prompt: ===\n" + prompt)
+        self.log("=== Chatbot Prompt: ===\n" + prompt + "=== END ===")
 
         # Send prompt to chatbot
         response = chatbot.send_message(message=prompt,
@@ -389,9 +405,12 @@ class Performance:
         for component in script_components:
             if isinstance(component, Dialogue):
                 dialogue_components.append(component)
+
+            # Not a Dialogue component
             else:
                 if __debug__:
-                    print("WARNING: non-Dialogue component in bot response:",
+                    #@REVISIT
+                    print("WARNING: non-Dialogue components ignored:",
                           component)
 
         return dialogue_components
@@ -417,21 +436,19 @@ class Performance:
 
         prompt = ""
 
-        # If chatbot does not keep track of context or hasn't been initialized
-        if not chatbot.keeps_context or self.chatbot_states[chatbot_index] == 0:
-            # Add chatbot to chatbot_states
-            #@TODO two chatbots of same name with different settings?
+        # If chatbot hasn't been initialized or ignores context
+        if self.chatbot_states[chatbot_index] == 0 or not chatbot.keep_context:
+            # Update chatbot state
             self.chatbot_states[chatbot_index] = len(self.working_script)
 
             if __debug__:
                 print("Initializing chatbot context for", chatbot.name, "...")
 
-            # Initialize chatbot context
+            # Prepare chatbot prompt
             prompt = self.prepare_context(chatbot = chatbot,
                                           max_lines = max_lines)
 
             # If next_performer is set, prepare a dialogue line for it
-            #@REVISIT placement
             if(next_performer):
                 prompt += next_performer.character_name.upper()
                 prompt += self.break_character_name()
@@ -449,17 +466,21 @@ class Performance:
             # If chatbot context is behind
             if context_behind > 0:
                 if __debug__:
-                    print("Adding", context_behind, "lines to chatbot prompt...")
+                    print(f"Adding {context_behind} lines to chatbot prompt...")
 
                 # Add missing lines to prompt
-                for line in self.working_script[chatbot_state:]:
+                for i, line in enumerate(self.working_script[chatbot_state:]):
+                    # If first line, don't add character name
+
                     prompt += line.to_str()
-                    prompt += self.break_dialogue_line()
+                    prompt += self.break_component()
 
                 # If next_performer is set, prepare a dialogue line
                 if next_performer:
                     prompt += next_performer.character_name.upper()
                     prompt += self.break_character_name()
+
+                self.queued_performer = next_performer
 
                 # Update chatbot state
                 self.chatbot_states[chatbot_index] = len(self.working_script)
@@ -476,9 +497,9 @@ class Performance:
             raise Exception("Unknown script format:", self.script_format)
 
     #@REVISIT architecture
-    def break_dialogue_line(self):
+    def break_component(self):
         """
-        Return a string to break up dialogue lines in a chatbot prompt.
+        Return the string to break between script components.
         """
 
         if self.script_format == ScriptFormat.MINIMAL:
@@ -502,9 +523,7 @@ class Performance:
         extra_directions = ""
 
         # Iterate through performers
-        for character_name in self.performers:
-            performer = self.performers[character_name]
-
+        for character_name, performer in self.performers.items():
             # If performer is a bot
             if isinstance(performer, BotPerformer):
                 # Add newline if not first performer
@@ -524,7 +543,7 @@ class Performance:
         # Convert working_script to string
         for line in self.working_script:
             working_script_string += line.to_str()
-            working_script_string += self.break_dialogue_line()
+            working_script_string += self.break_component()
 
         # If max_lines is set, add it to extra_directions
         if(max_lines):
