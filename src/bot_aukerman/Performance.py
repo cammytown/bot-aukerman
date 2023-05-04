@@ -18,7 +18,7 @@ from .Dialogue import Dialogue
 
 from .Interpreter import Interpreter
 
-from chatbots import AutoChatbot
+from llmber import AutoChatbot
 
 try:
     from coqui.CoquiImp import CoquiImp
@@ -56,6 +56,8 @@ class Performance:
     # TTS engine
     tts: Optional[CoquiImp] = None
 
+    verbose: bool = False
+
     # List of performers in the performance
     performers: dict
     bot_performers: list = []
@@ -82,7 +84,9 @@ class Performance:
 
         self.logdir = logdir
 
-        # self.tts = CoquiImp("tts_models/multilingual/multi-dataset/your_tts")
+        if(CoquiImp):
+            self.tts = CoquiImp("tts_models/multilingual/multi-dataset/your_tts")
+
         self.context_initialized = False
 
         # If logdir not set, use appdirs
@@ -101,6 +105,7 @@ class Performance:
         # Save model config in class property #@REVISIT necessary?
         self.model_config = model_config
 
+        # Print logdir
         print(f"Logs directory: {self.logdir}") #@TODO add info about how to change
 
         # Create logdir if it doesn't exist
@@ -173,36 +178,55 @@ class Performance:
         user_input = ""
         while user_input != "q":
             # Generate dialogue for characters
-            self.generate_dialogue(1)
-            # user_input = input()
+            dialogue_components = self.generate_dialogue(1)
+
+            # Perform dialogue
+            self.perform_components(dialogue_components)
 
             # Allow user to add dialogue
             user_input = input("")
-            self.add_dialogue(user_input)
+            if user_input:
+                try:
+                    dialogue = Dialogue.from_str(user_input)
+                    self.add_dialogue(dialogue)
+                except ValueError as e:
+                    print(f"WARNING: invalid user input dialogue: {user_input}")
+                    print(e)
 
     def add_performer(self, performer: Performer):
         """
         Add a performer to the performance.
         """
+        # If the performer is a BotPerformer
+        if isinstance(performer, BotPerformer):
+            self.add_bot_performer(performer)
+        # If the performer is a HumanPerformer
+        elif isinstance(performer, HumanPerformer):
+            self.add_human_performer(performer)
 
+    def add_bot_performer(self, performer: BotPerformer):
         # Add the performer to the list of performers
         self.performers[performer.character_name.upper()] = performer
 
-        # If the performer is a BotPerformer
-        if isinstance(performer, BotPerformer):
-            # Add the performer to the list of bot performers
-            self.bot_performers.append(performer)
+        # Add the performer to the list of bot performers
+        self.bot_performers.append(performer)
 
-            # If BotPerformer has a chatbot model_config
-            if performer.model_config:
-                # Initialize chatbot
-                #@REVISIT best architecture?
-                performer.chatbot_index = self._init_chatbot(performer.model_config)
+        # If BotPerformer has a chatbot model_config
+        if performer.model_config:
+            # Initialize chatbot
+            #@REVISIT best architecture?
+            performer.chatbot_index = self._init_chatbot(performer.model_config)
 
-        # If the performer is a HumanPerformer
-        elif isinstance(performer, HumanPerformer):
-            # Add the performer to the list of human performers
-            self.human_performers.append(performer)
+        if not performer.tts and self.tts:
+            performer.tts = self.tts
+            performer.speaker = self.tts.auto_select_speaker()
+
+    def add_human_performer(self, performer: HumanPerformer):
+        # Add the performer to the list of performers
+        self.performers[performer.character_name.upper()] = performer
+
+        # Add the performer to the list of human performers
+        self.human_performers.append(performer)
 
     def set_scene(self, scene_header: str):
         """
@@ -261,6 +285,8 @@ class Performance:
 
         # Add performer to character_history
         self.character_history.append(dialogue.character_name.upper())
+
+        return True
 
     def add_component(self, component: ScriptComponent):
         """
@@ -322,7 +348,10 @@ class Performance:
         last_character_name = self.character_history[-1]
         if last_character_name not in self.performers:
             #@TODO handle this better; maybe add character to performers?
-            print("WARNING: last character not in known performers")
+
+            if __debug__:
+                print("WARNING: last character not in known performers")
+
             return random.choice(bot_performers)
 
         last_performer = self.performers[last_character_name.upper()]
@@ -410,8 +439,7 @@ class Performance:
             else:
                 if __debug__:
                     #@REVISIT
-                    print("WARNING: non-Dialogue components ignored:",
-                          component)
+                    print("WARNING: non-Dialogue component ignored:", component)
 
         return dialogue_components
 
@@ -576,13 +604,17 @@ class Performance:
 
         match chatbot.name.lower():
             case "gpt4all":
-                prompt_string = resources.read_text("bot_aukerman.prompts", "gpt4all.txt")
+                prompt_string = resources.read_text("bot_aukerman.prompts",
+                                                    "gpt4all.txt")
             case "rwkv":
-                prompt_string = resources.read_text("bot_aukerman.prompts", "rwkv-raven.txt")
+                prompt_string = resources.read_text("bot_aukerman.prompts",
+                                                    "rwkv-raven.txt")
             case "gpt2":
-                prompt_string = resources.read_text("bot_aukerman.prompts", "gpt2.txt")
+                prompt_string = resources.read_text("bot_aukerman.prompts",
+                                                    "gpt2.txt")
             case _:
-                prompt_string = resources.read_text("bot_aukerman.prompts", "minimal-predict.txt")
+                prompt_string = resources.read_text("bot_aukerman.prompts",
+                                                    "minimal-predict.txt")
 
         return prompt_string
 
@@ -605,8 +637,8 @@ class Performance:
                 flags["discard_multiple_char_names"] = True
 
             case _:
-                print("WARNING: No flags set for chatbot", chatbot.name)
-                pass
+                if __debug__ and self.verbose:
+                    print("WARNING: No flags set for chatbot", chatbot.name)
 
         # If next_performer, prepend name to response to match chatbot query
         if next_performer:
@@ -673,49 +705,71 @@ class Performance:
 
         # For each line in the dialogue history
         for script_component in self.working_script:
-            # If line is a scene header
-            #@REVISIT should we rather have a ScriptComponent.type attribute?
-            if isinstance(script_component, SceneHeader):
-                if __debug__:
-                    print("=====================================")
-                    print("Performing scene header:", script_component.to_str())
-                continue
+            self.perform_component(script_component)
 
-            # If line is scene action
-            elif isinstance(script_component, SceneAction):
-                if __debug__:
-                    print("=====================================")
-                    print("Performing scene action:", script_component.to_str())
-                continue
+    def perform_components(self, script_components: List[ScriptComponent]):
+        """
+        Perform a list of script components.
+        """
+        #@REVISIT should we just have one method that takes list or component?
 
-            # If line is a dialogue line
-            elif isinstance(script_component, Dialogue):
-                # Check if performer exists in performance
-                if script_component.character_name not in self.performers:
-                    raise Exception("Performer",
-                                    script_component.character_name,
-                                    "not found in performance.")
+        for script_component in script_components:
+            self.perform_component(script_component)
 
-                # Get the performer for the line
-                performer = self.performers[script_component.character_name]
+    def perform_component(self, script_component: ScriptComponent):
+        """
+        Perform a single script component.
+        """
 
-                if __debug__:
-                    print("=====================================")
-                    print("Performing line for",
-                          script_component.character_name,
-                          ": ",
-                          script_component.dialogue)
+        # If line is a scene header
+        #@REVISIT should we rather have a ScriptComponent.type attribute?
+        if isinstance(script_component, SceneHeader):
+            if __debug__:
+                print("=====================================")
+                print("Performing scene header:", script_component.to_str())
+            return
 
-                # If the performer is a BotPerformer
-                if isinstance(performer, BotPerformer):
-                    # Perform the line
-                    # performer.perform(line.dialogue)
+        # If line is scene action
+        elif isinstance(script_component, SceneAction):
+            if __debug__:
+                print("=====================================")
+                print("Performing scene action:", script_component.to_str())
+            return
 
-                    if(self.tts):
-                        self.tts.say(script_component.dialogue, speaker=performer.speaker)
+        # If line is a dialogue line
+        elif isinstance(script_component, Dialogue):
+            # Check if performer exists in performance
+            if script_component.character_name not in self.performers:
+                raise Exception("Performer",
+                                script_component.character_name,
+                                "not found in performance.")
+
+            # Get the performer for the line
+            performer = self.performers[script_component.character_name]
+
+            if __debug__ and self.verbose:
+                print("=====================================")
+                print("Performing line for",
+                      script_component.character_name,
+                      ": ",
+                      script_component.dialogue)
+
+            # If the performer is a BotPerformer
+            if isinstance(performer, BotPerformer):
+                # Perform the line
+                try:
+                    performer.perform(script_component, self.tts)
+                except TypeError as e:
+                    print(f"WARNING: {e}")
+
+                # if(self.tts):
+                #     self.tts.say(script_component.dialogue,
+                #                  speaker=performer.speaker)
+                # else:
+                #     print(f"WARNING: No TTS set for bot {performer.speaker}")
 
     def log(self, message):
-        if __debug__:
+        if __debug__ and self.verbose:
             print(message)
 
         # If logdir is set, write message to file

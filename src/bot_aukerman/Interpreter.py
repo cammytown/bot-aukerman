@@ -8,6 +8,7 @@ from .SceneAction import SceneAction
 class Interpreter:
     context: str = "none"
     working_component: dict = {}
+    verbose: bool = False
 
     #@REVISIT architecture between this and parse_text
     @classmethod
@@ -32,14 +33,15 @@ class Interpreter:
             if(text[0] == "\n"):
                 text = text[1:]
 
-        if __debug__:
+        if __debug__ and self.verbose:
             print("Interpreting lines…")
 
         # Loop through lines
         lines = text.split("\n")
         script_components = self.parse_lines(lines)
 
-        if __debug__:
+        # Debug printing results
+        if __debug__ and self.verbose:
             print("Finished interpreting lines. Results:")
             for component in script_components:
                 print(component)
@@ -97,7 +99,7 @@ class Interpreter:
         for line_index, line in enumerate(lines):
             line = line.strip()
 
-            if __debug__:
+            if __debug__ and self.verbose:
                 print("context:", self.context, " | line:", line)
 
             match self.context:
@@ -112,8 +114,9 @@ class Interpreter:
                         script_components.append(component)
 
                     except ValueError:
-                        print("WARNING: could not auto create component from " \
-                                + "line: " + line)
+                        if __debug__ and self.verbose:
+                            print("WARNING: auto create component failed " \
+                                    + "line: " + line)
 
                         # If all uppercase #@TODO hacky solution  
                         if(line.isupper()):
@@ -151,8 +154,9 @@ class Interpreter:
                     else:
                         # If line is all uppercase
                         if(line.isupper()):
-                            print("WARNING: dialogue line is all uppercase: " \
-                                    + line)
+                            if __debug__ and self.verbose:
+                                print("WARNING: dialogue is all uppercase: " \
+                                        + line)
 
                         # If line is parenthetical
                         #@TODO multi-line parentheticals
@@ -187,8 +191,9 @@ class Interpreter:
                 return Dialogue(**params)
             case _:
                 #@TODO double-check and remove warning
-                print("WARNING: could not close working component with " \
-                        + "context: " + self.context)
+                if __debug__ and self.verbose:
+                    print("WARNING: could not close working component with " \
+                            + "context: " + self.context)
 
                 return None
 
