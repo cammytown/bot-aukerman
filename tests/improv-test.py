@@ -1,10 +1,13 @@
+verbose = True
+
+if verbose:
+    print("Importing modules...")
+
 # used internally to bring chatbots module into scope until proper packaging is done:
-import sys
-sys.path.append('./')
+# import sys
+# sys.path.append('./')
 
 from bot_aukerman import Performance, HumanPerformer, BotPerformer
-
-verbose = True
 
 if verbose:
     print("Initializing performance...")
@@ -73,20 +76,19 @@ performance.add_dialogue("FROG: Isn't it obvious?")
 performance.add_dialogue("HOMELESS MAN: A… a frog?")
 performance.add_dialogue("FROG: That's right.")
 performance.add_dialogue("HOMELESS MAN: But… but how?")
-# performance.add_dialogue("FROG:")
 
-# FROG: Hey! Watch where you're sitting!
-# HOMELESS MAN: What the!?
-# FROG: Yeah, yeah, yeah. A talking frog. Crazy, I know.
-# HOMELESS MAN: You— but— how?
-# FROG: Let's not get into it right now.
-# HOMELESS MAN: Why not?
-# FROG: Don't you think every single human I come across wants to talk about the same thing?
-# HOMELESS MAN: Well yeah, no shit. You're a talking frog. It's pretty unique.
-# FROG: Oh my god just let it go, already.
+# performance.add_dialogue("FROG: Hey! Watch where you're sitting!")
+# performance.add_dialogue("HOMELESS MAN: What the!?")
+# performance.add_dialogue("FROG: Yeah, yeah, yeah. A talking frog. Crazy, I know.")
+# performance.add_dialogue("HOMELESS MAN: You— but— how?")
+# performance.add_dialogue("FROG: Let's not get into it right now.")
+# performance.add_dialogue("HOMELESS MAN: Why not?")
+# performance.add_dialogue("FROG: Don't you think every single human I come across wants to talk about the same thing?")
+# performance.add_dialogue("HOMELESS MAN: Well yeah, no shit. You're a talking frog. It's pretty unique.")
+# performance.add_dialogue("FROG: Oh my god just let it go, already.")
 
 if verbose:
-    print("Generating dialogue...")
+    print("Starting interactive performance...")
 
 performance.start_interactive()
 
@@ -94,7 +96,7 @@ if verbose:
     print("Performing dialogue...")
 
 # Perform the script:
-performance.perform()
+# performance.perform()
 
 # Print the model timings:
 # performance.chatbot.model.print_timings()

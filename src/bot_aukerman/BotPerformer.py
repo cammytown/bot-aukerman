@@ -4,7 +4,7 @@ from .ScriptComponent import ScriptComponent
 from .Dialogue import Dialogue
 # from llmber import AutoChatbot
 
-from coqui.CoquiImp import CoquiImp #@REVISIT
+from coqui_imp.CoquiImp import CoquiImp #@REVISIT
 
 class BotPerformer(Performer):
     # chatbot: Optional[AutoChatbot] = None
