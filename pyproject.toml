@@ -9,8 +9,11 @@ packages = [
 ]
 
 [tool.poetry.dependencies]
-python = "^3.10"
+python = "^3.10,<3.11" #@TODO coqui.tts requires 3.10 for now
 appdirs = "^1.4.4"
+llmber = {path = "../llmber"}
+vosk_imp = {path = "../vosk-imp"}
+coqui_imp = {path = "../coqui-imp"}
 
 
 [build-system]

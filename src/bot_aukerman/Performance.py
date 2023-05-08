@@ -17,7 +17,7 @@ from .Interpreter import Interpreter
 
 from .constants import ScriptFormat, ScriptComponentType
 
-from llmber import AutoChatbot
+from llmber.AutoChatbot import AutoChatbot
 
 #@TODO Optional[CoquiImp] and Optional[VoskImp] are not working as expected
 # when using try/except to import the modules. Bored of trying to debug it.
