@@ -7,7 +7,7 @@ authors = [
 ]
 readme = "README.md"
 dependencies = [
-	"python >= 3.9 < 3.11",
+	"python >=3.9,<3.11",
 	"appdirs",
 
 	#@TODO: remove these when they're on pypi
