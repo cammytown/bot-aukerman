@@ -7,6 +7,7 @@ Under heavy development.
     - repetition penalty when implemented in llmber
 - improve input processing
     - consider trying to detect where punctuation marks go to assist LLM in understanding intention (and to improve output script quality)
+    - allow option of having character-specific initialization dialogue scripts (i.e. example scripts) that get fed only to chatbot associated with that character
 - improving codebase
     - maybe refactor Generator so we don't rely on a classmethod that instantiates a class and so we can move some things like chatbots[] and chatbot_states[] into it; but would require tighter coupling of classes and thus perhaps an intermediate handler class (maybe just called 'BotAukerman')
 - improving usability

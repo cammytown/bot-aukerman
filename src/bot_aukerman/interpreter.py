@@ -1,8 +1,8 @@
 from typing import List
-from .ScriptComponent import ScriptComponent
-from .SceneHeader import SceneHeader
-from .Dialogue import Dialogue
-from .SceneAction import SceneAction
+from .script_component import ScriptComponent
+from .scene_header import SceneHeader
+from .dialogue import Dialogue
+from .scene_action import SceneAction
 
 #@TODO rename and move to isolated module; dramaparse,parsedrama,rescribe
 class Interpreter:

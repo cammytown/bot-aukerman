@@ -1,4 +1,4 @@
-from .Performer import Performer
+from .performer import Performer
 
 class HumanPerformer(Performer):
     def __init__(self,

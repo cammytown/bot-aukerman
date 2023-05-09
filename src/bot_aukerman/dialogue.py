@@ -1,4 +1,4 @@
-from .ScriptComponent import ScriptComponent
+from .script_component import ScriptComponent
 
 class Dialogue(ScriptComponent):
     character_name: str

@@ -1,11 +1,6 @@
 verbose = True
-
 if verbose:
     print("Importing modules...")
-
-# used internally to bring chatbots module into scope until proper packaging is done:
-# import sys
-# sys.path.append('./')
 
 from bot_aukerman import Performance, HumanPerformer, BotPerformer
 
@@ -13,20 +8,24 @@ if verbose:
     print("Initializing performance...")
 
 # Initialize a performance
-model_config = { "name": "gpt2", }
+# model_config = { "model": "gpt2", }
+
+model_config = {
+    "model": "gpt4all-7B-unfiltered",
+    "engine": "llamacpp"
+}
 
 # model_config = {
-#     "name": "text-ada-001",
-#     "remote": "openai",
+#     "model": "text-ada-001",
+#     "engine": "openai",
 # }
 
 # model_config = {
-#     "name": "text-curie-001",
-#     "remote": "openai",
+#     "model": "text-curie-001",
+#     "engine": "openai",
 # }
 
 performance = Performance(model_config = model_config,
-                          logdir = "logs/bot_aukerman/",
                           resume_from_log = False)
 
 if verbose:
@@ -42,7 +41,7 @@ talking_frog = BotPerformer(
     character_name="Frog",
     character_desc="A talking frog; extremely intelligent but very sarcastic and patronizing. Flawed character.",
 
-    model_config={ "name": "gpt2", },
+    # model_config={ "model": "gpt2", },
 
     # speaker=performance.tts.tts.speakers[2],
 )
@@ -51,7 +50,7 @@ homeless_man = BotPerformer(
     character_name="Homeless Man",
     character_desc="A homeless man; distraught about existential concerns and the state of society. Hates money. Hates capitalism. Refuses to participate.",
 
-    # model_config={ "name": "text-ada-001", "remote": "openai" },
+    # model_config={ "model": "text-ada-001", "remote": "openai" },
 
     # speaker=performance.tts.tts.speakers[1],
 )
@@ -90,7 +89,7 @@ performance.add_dialogue("HOMELESS MAN: But… but how?")
 if verbose:
     print("Starting interactive performance...")
 
-performance.start_interactive()
+performance.start_interactive_text()
 
 if verbose:
     print("Performing dialogue...")

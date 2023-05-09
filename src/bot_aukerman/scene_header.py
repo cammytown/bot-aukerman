@@ -1,6 +1,6 @@
 import re
 
-from .ScriptComponent import ScriptComponent
+from .script_component import ScriptComponent
 
 class SceneHeader(ScriptComponent):
     # scene_number: int

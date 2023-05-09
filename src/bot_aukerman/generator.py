@@ -2,13 +2,13 @@ from typing import List, Optional
 import random
 from importlib import resources
 
-from .ScriptComponent import ScriptComponent
-from .Dialogue import Dialogue
-# from .Performance import Performance #@TODO type hinting causes circular import
-from .Performer import Performer
-from .BotPerformer import BotPerformer
-from .HumanPerformer import HumanPerformer
-from .Interpreter import Interpreter
+from .script_component import ScriptComponent
+from .dialogue import Dialogue
+# from .performance import Performance #@TODO type hinting causes circular import
+from .performer import Performer
+from .bot_performer import BotPerformer
+from .human_performer import HumanPerformer
+from .interpreter import Interpreter
 
 from .constants import ScriptFormat, ScriptComponentType
 
@@ -17,9 +17,11 @@ from llmber import AutoChatbot
 class Generator():
     performance = None #@TODO type hinting causes circular import
     verbose: bool = True
+    script_format: ScriptFormat = ScriptFormat.FOUNTAIN
 
     def __init__(self, performance):
         self.performance = performance
+        self.script_format = performance.script_format
 
     #@REVISIT really not sure about this architecture; mostly just doing it to
     #@ stay consistent with Interpreter that uses the same concept; but we might
@@ -27,7 +29,7 @@ class Generator():
     @classmethod
     def generate(cls,
                  performance,
-                 max_lines: int = 0) -> List[Dialogue]:
+                 num_lines: int = 1) -> List[Dialogue]:
         """
         Generate a script for a performance.
 
@@ -46,12 +48,12 @@ class Generator():
         generator = cls(performance)
 
         # Generate script
-        script_components = generator.generate_dialogue(max_lines=max_lines)
+        script_components = generator.generate_dialogue(num_lines=num_lines)
 
         return script_components
 
     def generate_dialogue(self,
-                          max_lines = 0) -> List[Dialogue]:
+                          num_lines = 1) -> List[Dialogue]:
         """
         Generate dialogue for a performance.
         """
@@ -65,7 +67,7 @@ class Generator():
 
         #@TODO combine requests when possible (i.e. loop through characters
         # and determine who shares chatbots, send minimal chatbot queries)
-        for line_index in range(max_lines): #@REVISIT architecture
+        for line_index in range(num_lines): #@REVISIT architecture
             bot_performer = self.pick_next_bot_performer()
 
             # Generate dialogue for that performer
@@ -112,7 +114,7 @@ class Generator():
 
     def generate_performer_lines(self,
                                  performer,
-                                 max_lines = 0
+                                 num_lines = 1
                                  ) -> List[Dialogue]:
         """
         Generate dialogue for a performer.
@@ -125,7 +127,7 @@ class Generator():
         performer : Performer
             The performer to generate dialogue for.
 
-        max_lines : int
+        num_lines : int
             The maximum number of lines to generate. If 0, generate as many
             lines as possible.
 
@@ -137,11 +139,11 @@ class Generator():
 
         # Prepare prompt
         prompt = self.prepare_chatbot_prompt(next_performer=performer,
-                                             max_lines=max_lines)
+                                             num_lines=num_lines)
 
         #@SCAFFOLDING
         stop_sequences = []
-        if max_lines == 1:
+        if num_lines == 1:
             stop_sequences.append({
                 "type": "regex",
                 "value": r"[\S]+\n"
@@ -197,7 +199,7 @@ class Generator():
 
     def prepare_chatbot_prompt(self,
                                next_performer: Optional[BotPerformer] = None,
-                               max_lines = 0) -> str:
+                               num_lines = 1) -> str:
         """
         Prepare a prompt for the chatbot to generate dialogue; optionally for a
         specific performer.
@@ -227,7 +229,7 @@ class Generator():
 
             # Prepare chatbot prompt
             prompt = self.prepare_context(chatbot = chatbot,
-                                          max_lines = max_lines)
+                                          num_lines = num_lines)
 
             # If next_performer is set, prepare a dialogue line for it
             if(next_performer):
@@ -250,11 +252,8 @@ class Generator():
                     print(f"Adding {context_behind} lines to chatbot prompt...")
 
                 # Add missing lines to prompt
-                for i, line in enumerate(self.performance.working_script[chatbot_state:]):
-                    # If first line, don't add character name
-
-                    prompt += line.to_str()
-                    prompt += self.break_component()
+                missing_lines = self.performance.working_script[chatbot_state:]
+                prompt += self.components_to_str(missing_lines)
 
                 # If next_performer is set, prepare a dialogue line
                 if next_performer:
@@ -267,6 +266,19 @@ class Generator():
                 self.performance.chatbot_states[chatbot_index] = len(self.performance.working_script)
 
         return prompt
+
+    @staticmethod
+    def components_to_str(components: List[ScriptComponentType],
+                          script_format: ScriptFormat = ScriptFormat.FOUNTAIN
+                          ) -> str:
+        return_string = ""
+
+        for i, line in enumerate(components):
+            return_string += line.to_str()
+            return_string += Generator.break_component(script_format)
+
+        return return_string
+
 
     #@REVISIT architecture
     def break_character_name(self) -> str:
@@ -282,29 +294,22 @@ class Generator():
             raise Exception("Unknown script format:", self.performance.script_format)
 
     #@REVISIT architecture
-    def break_component(self) -> str:
-        """
-        Return the string to break between script components.
-        """
-
-        return self.break_component_in_format(self.performance.script_format)
-
     @staticmethod
-    def break_component_in_format(format: ScriptFormat) -> str:
+    def break_component(script_format: ScriptFormat = ScriptFormat.FOUNTAIN) -> str:
         """
         Return the string to break between script components in a given format.
         """
 
-        if format == ScriptFormat.MINIMAL:
+        if script_format == ScriptFormat.MINIMAL:
             return "\n"
-        elif format == ScriptFormat.FOUNTAIN:
+        elif script_format == ScriptFormat.FOUNTAIN:
             return "\n\n"
         else:
-            raise Exception("Unknown script format:", format)
+            raise Exception("Unknown script format:", script_format)
 
     def prepare_context(self,
                         chatbot,
-                        max_lines = 0) -> str:
+                        num_lines = 1) -> str:
         """
         Prepare a prompt to give a chatbot to generate dialogue.
         """
@@ -339,12 +344,12 @@ class Generator():
         # Convert working_script to string
         for line in self.performance.working_script:
             working_script_string += line.to_str()
-            working_script_string += self.break_component()
+            working_script_string += self.break_component(self.script_format)
 
-        # If max_lines is set, add it to extra_directions
-        if(max_lines):
+        # If num_lines is set, add it to extra_directions
+        if(num_lines):
             extra_directions += "\n\nPlease generate no more than " \
-                + str(max_lines) + " lines of dialogue."
+                + str(num_lines) + " lines of dialogue."
 
         # Prepare placeholders
         replacements = {

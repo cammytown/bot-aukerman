@@ -1,7 +1,7 @@
 from typing import Optional
-from .Performer import Performer
-from .ScriptComponent import ScriptComponent
-from .Dialogue import Dialogue
+from .performer import Performer
+from .script_component import ScriptComponent
+from .dialogue import Dialogue
 # from llmber import AutoChatbot
 
 from coqui_imp.CoquiImp import CoquiImp #@REVISIT

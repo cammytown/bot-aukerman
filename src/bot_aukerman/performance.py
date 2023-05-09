@@ -3,21 +3,21 @@ import datetime
 import appdirs
 from typing import Optional, List, NewType
 
-from .Performer import Performer
-from .HumanPerformer import HumanPerformer
-from .BotPerformer import BotPerformer
+from .performer import Performer
+from .human_performer import HumanPerformer
+from .bot_performer import BotPerformer
 
-from .ScriptComponent import ScriptComponent #, SceneHeader, Dialogue, Action
-from .SceneHeader import SceneHeader
-from .SceneAction import SceneAction
-from .Dialogue import Dialogue
+from .script_component import ScriptComponent #, SceneHeader, Dialogue, Action
+from .scene_header import SceneHeader
+from .scene_action import SceneAction
+from .dialogue import Dialogue
 
-from .Generator import Generator
-from .Interpreter import Interpreter
+from .generator import Generator
+from .interpreter import Interpreter
 
 from .constants import ScriptFormat, ScriptComponentType
 
-from llmber.AutoChatbot import AutoChatbot
+from llmber import AutoChatbot
 
 #@TODO Optional[CoquiImp] and Optional[VoskImp] are not working as expected
 # when using try/except to import the modules. Bored of trying to debug it.
@@ -49,8 +49,8 @@ class Performance:
     # Format of script
     script_format: ScriptFormat = ScriptFormat.FOUNTAIN
 
-    # Maximum number of lines to generate during generate_dialogue()
-    max_lines: int = 0
+    # Number of lines to generate during generate_dialogue()
+    num_lines: int = 0
 
     # Where to save the script
     logdir: str
@@ -394,22 +394,35 @@ class Performance:
         # Write dialogue line to file
         with open(self.logdir + "current-dialogue-history.txt", "a+") as f:
             f.write(component.to_str())
-            f.write(Generator.break_component_in_format(self.script_format))
+            f.write(Generator.break_component(self.script_format))
 
         return True
 
-    def generate_dialogue(self, max_lines = 0) -> List[Dialogue]:
+    def generate_dialogue(self,
+                          num_lines = 1,
+                          return_as = "list",
+                          ) -> List[Dialogue]:
         """
         Generate new dialogue for characters and add it to the working script.
         """
 
         # Generate dialogue
-        dialogue_components = Generator.generate(self, max_lines) #@REVISIT
+        dialogue_components = Generator.generate(self, num_lines) #@REVISIT
 
         # Add dialogue lines to dialogue history
         self.add_dialogue(dialogue_components)
 
-        return dialogue_components
+        match return_as:
+            case "list":
+                return dialogue_components
+            case "str" | "string" | "text":
+                return self.components_to_str(dialogue_components)
+
+    def components_to_str(self, components: List[ScriptComponentType]) -> str:
+        """
+        Convert a list of script components to a string.
+        """
+        return Generator.components_to_str(components, self.script_format)
 
     def perform(self):
         """

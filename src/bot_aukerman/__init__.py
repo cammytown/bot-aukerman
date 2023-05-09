@@ -1,9 +1,9 @@
-from .Performance import Performance
-from .Performer import Performer
-from .HumanPerformer import HumanPerformer
-from .BotPerformer import BotPerformer
+from .performance import Performance
+from .performer import Performer
+from .human_performer import HumanPerformer
+from .bot_performer import BotPerformer
 
-# from .ScriptComponent import ScriptComponent
-# from .SceneHeader import SceneHeader
-# from .SceneAction import SceneAction
-# from .DialogueLine import DialogueLine
+# from .script_component import ScriptComponent
+# from .scene_header import SceneHeader
+# from .scene_action import SceneAction
+# from .dialogueLine import DialogueLine
