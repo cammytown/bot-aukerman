@@ -50,6 +50,8 @@ homeless_man = BotPerformer(
     character_name="Homeless Man",
     character_desc="A homeless man; distraught about existential concerns and the state of society. Hates money. Hates capitalism. Refuses to participate.",
 
+    model_config = { "model": "gpt2", },
+
     # model_config={ "model": "text-ada-001", "remote": "openai" },
 
     # speaker=performance.tts.tts.speakers[1],

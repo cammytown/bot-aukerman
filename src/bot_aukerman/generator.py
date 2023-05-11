@@ -162,7 +162,7 @@ class Generator():
 
         # Send prompt to chatbot
         response = chatbot.send_message(message=prompt,
-                                        n_tokens=28,
+                                        n_tokens=128,
                                         stop_sequences=stop_sequences)
 
         # Log the response

@@ -2,6 +2,9 @@ Under heavy development.
 
 # TODO / Ideas
 - move these into Github issues
+- features
+    - intent parsing of phrases; use to improve functionality
+    - add characters during performance; esp. automatically from dialogue introducing new characters
 - improving output
     - decrease likelihood of \n token?
     - repetition penalty when implemented in llmber
