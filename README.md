@@ -1,15 +1,15 @@
 Under heavy development.
 
-# TODO / Ideas
+# Todo / Ideas / Roadmap
 - move these into Github issues
 - features
-    - intent parsing of phrases; use to improve functionality (i.e. determine next speaker, add characters dynamically, etc.)
     - add characters during performance; esp. automatically from dialogue introducing new characters
-    - edit working script during performance to adjust context (will require some slightly complex architecture… set global context state index to point of edit and beyond)
-- improving output
+    - editable working script during performance to adjust context (will require some slightly complex architecture… set global context state index to point of edit and beyond)
+- improving LLM output
     - decrease likelihood of \n token?
     - repetition penalty when implemented in llmber
 - improve input processing
+    - intent parsing of phrases; use to improve functionality (i.e. determine next speaker, add characters dynamically, etc.)
     - consider trying to detect where punctuation marks go to assist LLM in understanding intention (and to improve output script quality)
     - allow option of having character-specific initialization dialogue scripts (i.e. example scripts) that get fed only to chatbot associated with that character
 - improving codebase
@@ -18,6 +18,8 @@ Under heavy development.
     - properly incorporate TTS in a way suitable for a public package
     - an interface (separate package?)
     - a way to signal things; like telling a chatbot to reset its context if it starts repeating itself, or to send commands like choosing the next performer, interrupting speech or text generation, and maybe broader things like signaling moods
+        - a drama button/signal that tells the LLM(s) to introduce a dramatic/surprising event
+        - custom signals
     - properly expose API/configurability for OpenAI/etc. api key setup
     - documentation
 

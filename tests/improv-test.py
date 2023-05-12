@@ -8,22 +8,11 @@ if verbose:
     print("Initializing performance...")
 
 # Initialize a performance
-model_config = { "model": "gpt2-large", }
-
-# model_config = {
-#     "model": "gpt4all-7B-unfiltered",
-#     "engine": "llamacpp"
-# }
-
-# model_config = {
-#     "model": "text-ada-001",
-#     "engine": "openai",
-# }
-
-# model_config = {
-#     "model": "text-curie-001",
-#     "engine": "openai",
-# }
+model_config = {"engine": "rwkv" }
+# model_config = { "model": "gpt2-large" }
+# model_config = { "model": "gpt4all-7B-unfiltered", "engine": "llamacpp" }
+# model_config = { "model": "text-ada-001", "engine": "openai", }
+# model_config = { "engine": "openai", }
 
 performance = Performance(model_config = model_config,
                           resume_from_log = False)
@@ -40,7 +29,7 @@ human = HumanPerformer(
 talking_frog = BotPerformer(
     character_name="Frog",
     character_desc="A talking frog; extremely intelligent but very sarcastic and patronizing. Flawed character.",
-    model_config={ "model": "gpt2", },
+    # model_config={ "model": "gpt2", },
 )
 
 homeless_man = BotPerformer(
