@@ -1,6 +1,7 @@
-from typing import List, Optional
+from typing import List, Optional, Callable
 import random
 from importlib import resources
+import re
 
 from .script_component import ScriptComponent
 from .dialogue import Dialogue
@@ -18,10 +19,14 @@ class Generator():
     performance = None #@TODO type hinting causes circular import
     verbose: bool = True
     script_format: ScriptFormat = ScriptFormat.FOUNTAIN
+    component_filters: List[Callable] = []
 
     def __init__(self, performance):
         self.performance = performance
         self.script_format = performance.script_format
+
+        #@TODO make optional
+        self.component_filters.append(self.filter_non_alphabetical)
 
     #@REVISIT really not sure about this architecture; mostly just doing it to
     #@ stay consistent with Interpreter that uses the same concept; but we might
@@ -160,19 +165,58 @@ class Generator():
         self.performance.log("=== Chatbot Prompt: ===\n" + prompt \
                 + "=== END ===")
 
-        # Send prompt to chatbot
-        response = chatbot.send_message(message=prompt,
-                                        n_tokens=128,
-                                        stop_sequences=stop_sequences)
 
-        # Log the response
-        self.performance.log("=== Chatbot Response: ===\n" + response \
-                + "=== END ===\n")
+        valid_generation = False #@REVISIT naming
+        context = chatbot.get_context()
+        max_attempts = 10
+        attempt = 0
+        while not valid_generation:
+            #@TODO-5 if this is a remote API, we need to be very careful here
 
-        # Parse response into dialogue lines
-        script_components = self.parse_chatbot_response(response,
-                                            chatbot=chatbot,
-                                            next_performer=performer)
+            # Send prompt to chatbot
+            response = chatbot.send_message(message=prompt,
+                                            n_tokens=128,
+                                            stop_sequences=stop_sequences)
+
+            # Log the response
+            self.performance.log("=== Chatbot Response: ===\n" + response \
+                    + "=== END ===\n")
+
+            # Parse response into dialogue lines
+            script_components = self.parse_chatbot_response(response,
+                                                            chatbot=chatbot,
+                                                            next_performer=performer)
+
+            # Filter for valid components
+            script_components = self.filter_script_components(script_components)
+
+            # Check if enough valid components were generated
+            if len(script_components) >= num_lines:
+                valid_generation = True
+                #@TODO delete saved context
+
+            # Not enough valid components; reset context and try again
+            else:
+                attempt += 1
+                if attempt >= max_attempts:
+                    raise Exception(f"Failed to generate valid dialogue " \
+                            + f"after {attempt} attempts")
+
+                if __debug__:
+                    print("WARNING: invalid generation; trying again")
+
+                # If using a remote API
+                if chatbot.is_remote:
+                    #@SCAFFOLDING safety measure to prevent infinite loop charges
+                    raise Exception(f"Invalid generation on remote API; " \
+                            + f"canceling generation to prevent charges")
+
+                # Reset context
+                chatbot.set_context(context)
+
+        if len(script_components) > num_lines:
+            #@REVISIT
+            print("WARNING: too many lines generated")
 
         # Filter for Dialogue components
         dialogue_components = []
@@ -187,6 +231,86 @@ class Generator():
                     print("WARNING: non-Dialogue component ignored:", component)
 
         return dialogue_components
+
+    def filter_script_components(self, script_components):
+        """
+        Filter script components for valid components.
+
+        Parameters
+        ----------
+        script_components : list of ScriptComponent
+            The script components to filter.
+
+        Returns
+        -------
+        valid_components : list of ScriptComponent
+            The valid script components.
+        """
+
+        valid_components = []
+
+        for component in script_components:
+            if not self.validate_script_component(component):
+                if __debug__:
+                    print("WARNING: invalid script component:", component)
+
+                continue
+
+            valid_components.append(component)
+
+        return valid_components
+
+    def validate_script_component(self, component):
+        """
+        Validate a script component.
+
+        Parameters
+        ----------
+        component : ScriptComponent
+            The script component to validate.
+
+        Returns
+        -------
+        valid : bool
+            Whether the script component is valid.
+        """
+
+        if isinstance(component, Dialogue):
+            return True
+
+        for component_filter in self.component_filters:
+            if not component_filter(component):
+                return False
+
+        return False
+
+    def filter_non_alphabetical(self, component): #@REVISIT naming
+        """
+        Filter out components with no alphabetical characters.
+
+        Parameters
+        ----------
+        component : ScriptComponent
+            The script component to filter.
+
+        Returns
+        -------
+        valid : bool
+            Whether the script component is valid.
+        """
+
+        text: str
+
+        if not isinstance(component, Dialogue):
+            # Check if component has any alphabetical characters
+            text = component.to_str()
+        else:
+            text = component.dialogue
+
+        if not re.search(r"[a-zA-Z]", text):
+            return False
+
+        return True
 
     def get_performer_chatbot(self, performer) -> AutoChatbot:
         """

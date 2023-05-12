@@ -8,12 +8,12 @@ if verbose:
     print("Initializing performance...")
 
 # Initialize a performance
-# model_config = { "model": "gpt2", }
+model_config = { "model": "gpt2-large", }
 
-model_config = {
-    "model": "gpt4all-7B-unfiltered",
-    "engine": "llamacpp"
-}
+# model_config = {
+#     "model": "gpt4all-7B-unfiltered",
+#     "engine": "llamacpp"
+# }
 
 # model_config = {
 #     "model": "text-ada-001",

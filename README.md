@@ -3,8 +3,9 @@ Under heavy development.
 # TODO / Ideas
 - move these into Github issues
 - features
-    - intent parsing of phrases; use to improve functionality
+    - intent parsing of phrases; use to improve functionality (i.e. determine next speaker, add characters dynamically, etc.)
     - add characters during performance; esp. automatically from dialogue introducing new characters
+    - edit working script during performance to adjust context (will require some slightly complex architecture… set global context state index to point of edit and beyond)
 - improving output
     - decrease likelihood of \n token?
     - repetition penalty when implemented in llmber
