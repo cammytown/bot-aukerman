@@ -40,21 +40,13 @@ human = HumanPerformer(
 talking_frog = BotPerformer(
     character_name="Frog",
     character_desc="A talking frog; extremely intelligent but very sarcastic and patronizing. Flawed character.",
-
-    # model_config={ "model": "gpt2", },
-
-    # speaker=performance.tts.tts.speakers[2],
+    model_config={ "model": "gpt2", },
 )
 
 homeless_man = BotPerformer(
     character_name="Homeless Man",
     character_desc="A homeless man; distraught about existential concerns and the state of society. Hates money. Hates capitalism. Refuses to participate.",
-
-    model_config = { "model": "gpt2", },
-
     # model_config={ "model": "text-ada-001", "remote": "openai" },
-
-    # speaker=performance.tts.tts.speakers[1],
 )
 
 if verbose:
