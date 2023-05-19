@@ -8,8 +8,8 @@ if verbose:
     print("Initializing performance...")
 
 # Initialize a performance
-model_config = {"engine": "rwkv" }
-# model_config = { "model": "gpt2-large" }
+# model_config = { "engine": "rwkv" }
+model_config = { "model": "gpt2-large" }
 # model_config = { "model": "gpt4all-7B-unfiltered", "engine": "llamacpp" }
 # model_config = { "model": "text-ada-001", "engine": "openai", }
 # model_config = { "engine": "openai", }
@@ -29,7 +29,7 @@ human = HumanPerformer(
 talking_frog = BotPerformer(
     character_name="Frog",
     character_desc="A talking frog; extremely intelligent but very sarcastic and patronizing. Flawed character.",
-    # model_config={ "model": "gpt2", },
+    # model_config={ "model": "gpt2-large", },
 )
 
 homeless_man = BotPerformer(

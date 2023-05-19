@@ -54,7 +54,17 @@ class BotPerformer(Performer):
         if not self.tts and fallback_tts:
             self.set_tts(fallback_tts)
 
+        # Split dialogue into parentheticals and dialogue
+        subcomponents = script_component.split_parens_and_dialogue()
+        
+        # Remove parentheticals
+        #@TODO allow parentheticals to influence TTS
+        spoken_dialogue = ""
+        for subcomponent in subcomponents:
+            if(subcomponent["type"] == "dialogue"):
+                spoken_dialogue += subcomponent["text"]
+
         if self.tts:
-            self.tts.say(script_component.dialogue, speaker=self.speaker)
+            self.tts.say(spoken_dialogue, speaker=self.speaker)
         else:
             print(f"WARNING: No TTS for {self.character_name}")

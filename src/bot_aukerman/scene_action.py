@@ -16,4 +16,9 @@ class SceneAction(ScriptComponent):
 
     @staticmethod
     def from_str(action_str):
+        if action_str.isupper():
+            #@REVISIT might want a more complex check; can action ever be all caps?
+            #@ we might need to look at next line
+            raise ValueError(f"action_str is all uppercase: {action_str}")
+
         return SceneAction(action_str)

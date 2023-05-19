@@ -8,7 +8,7 @@ Under heavy development.
 - improving LLM output
     - decrease likelihood of \n token?
     - repetition penalty when implemented in llmber
-- improve input processing
+- improve processing
     - intent parsing of phrases; use to improve functionality (i.e. determine next speaker, add characters dynamically, etc.)
     - consider trying to detect where punctuation marks go to assist LLM in understanding intention (and to improve output script quality)
     - allow option of having character-specific initialization dialogue scripts (i.e. example scripts) that get fed only to chatbot associated with that character

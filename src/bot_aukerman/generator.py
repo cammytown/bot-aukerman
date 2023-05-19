@@ -12,13 +12,17 @@ from .human_performer import HumanPerformer
 from .interpreter import Interpreter
 
 from .constants import ScriptFormat, ScriptComponentType
+from .logging import warn
 
 from llmber import AutoChatbot
 
 class Generator():
-    performance = None #@TODO type hinting causes circular import
     verbose: bool = True
+
+    performance = None #@TODO type hinting causes circular import
+
     script_format: ScriptFormat = ScriptFormat.FOUNTAIN
+
     component_filters: List[Callable] = []
 
     def __init__(self, performance):
@@ -104,7 +108,7 @@ class Generator():
             #@TODO handle this better; maybe add character to performers?
 
             if __debug__:
-                print("WARNING: last character not in known performers")
+                warn("last character not in known performers")
 
             return random.choice(bot_performers)
 
@@ -142,6 +146,8 @@ class Generator():
             The generated dialogue lines.
         """
 
+        dialogue_components = []
+
         # Prepare prompt
         prompt = self.prepare_chatbot_prompt(next_performer=performer,
                                              num_lines=num_lines)
@@ -151,10 +157,10 @@ class Generator():
         if num_lines == 1:
             stop_sequences.append({
                 "type": "regex",
-                "value": r"[\S]+\n"
+                "value": r"[\S]+\n\n"
             })
 
-
+        # Get chatbot used for performer
         chatbot = self.get_performer_chatbot(performer)
 
         if not chatbot:
@@ -166,69 +172,74 @@ class Generator():
                 + "=== END ===")
 
 
+        # Add prompt to chatbot context
+        chatbot.add_string_to_context(prompt)
+
         valid_generation = False #@REVISIT naming
         context = chatbot.get_context()
+        working_component = None
         max_attempts = 10
         attempt = 0
         while not valid_generation:
-            #@TODO-5 if this is a remote API, we need to be very careful here
-
-            # Send prompt to chatbot
-            response = chatbot.send_message(message=prompt,
-                                            n_tokens=128,
-                                            stop_sequences=stop_sequences)
+            # Generate response
+            response = chatbot.request_string(n_tokens = 128,
+                                              stop_sequences = stop_sequences)
 
             # Log the response
             self.performance.log("=== Chatbot Response: ===\n" + response \
                     + "=== END ===\n")
 
             # Parse response into dialogue lines
-            script_components = self.parse_chatbot_response(response,
-                                                            chatbot=chatbot,
-                                                            next_performer=performer)
+            script_components = self.parse_response(response,
+                                                    chatbot=chatbot,
+                                                    next_performer=performer,
+                                                    working_component=working_component,)
 
             # Filter for valid components
             script_components = self.filter_script_components(script_components)
 
-            # Check if enough valid components were generated
-            if len(script_components) >= num_lines:
-                valid_generation = True
-                #@TODO delete saved context
+            # Remove any components over limit
+            script_components = script_components[:num_lines]
 
-            # Not enough valid components; reset context and try again
-            else:
-                attempt += 1
-                if attempt >= max_attempts:
-                    raise Exception(f"Failed to generate valid dialogue " \
-                            + f"after {attempt} attempts")
-
-                if __debug__:
-                    print("WARNING: invalid generation; trying again")
-
+            # If no (valid) script components were generated
+            if len(script_components) == 0:
                 # If using a remote API
                 if chatbot.is_remote:
                     #@SCAFFOLDING safety measure to prevent infinite loop charges
                     raise Exception(f"Invalid generation on remote API; " \
                             + f"canceling generation to prevent charges")
 
+                # If too many attempts
+                attempt += 1
+                if attempt >= max_attempts:
+                    raise Exception(f"Failed to generate valid dialogue " \
+                            + f"after {attempt} attempts")
+
                 # Reset context
                 chatbot.set_context(context)
 
-        if len(script_components) > num_lines:
-            #@REVISIT
-            print("WARNING: too many lines generated")
-
-        # Filter for Dialogue components
-        dialogue_components = []
-        for component in script_components:
-            if isinstance(component, Dialogue):
-                dialogue_components.append(component)
-
-            # Not a Dialogue component
-            else:
                 if __debug__:
-                    #@REVISIT
-                    print("WARNING: non-Dialogue component ignored:", component)
+                    warn("invalid generation; trying again")
+
+            # # If last component is partial (only parentheses)
+            # last_component = script_components[-1]
+            # if isinstance(last_component, Dialogue) and not last_component.dialogue:
+            #     # self.performance.log("WARNING: partial component")
+            #     print("WARNING: partial component")
+            #     working_component = script_components.pop()
+
+            #     # While the working component is partial
+            #     while not working_component.dialogue:
+            #         # Request more text from chatbot
+
+            # Add the script components to dialogue_components
+            dialogue_components.extend(script_components)
+
+            valid_generation = True
+
+            #@TODO delete saved context
+
+            #@ handle Not enough valid components
 
         return dialogue_components
 
@@ -252,7 +263,7 @@ class Generator():
         for component in script_components:
             if not self.validate_script_component(component):
                 if __debug__:
-                    print("WARNING: invalid script component:", component)
+                    warn("invalid script component:", component)
 
                 continue
 
@@ -275,6 +286,7 @@ class Generator():
             Whether the script component is valid.
         """
 
+        #@REVISIT only allow Dialogue?
         if isinstance(component, Dialogue):
             return True
 
@@ -329,24 +341,32 @@ class Generator():
         specific performer.
         """
 
+        prompt = ""
+
         # Get performer or performance chatbot
         # chatbot = self.get_performer_chatbot(next_performer)
+        # If a performer is queued
         if next_performer:
+            # Get performer's chatbot index
             #@REVISIT Performer.chatbot_index is currently initialized to 0
             # which is fine as long as the Performance's chatbot index is also 0
             # Otherwise, we don't know which chatbot is at 0 index
             chatbot_index = next_performer.chatbot_index
+
+        # If no performer is queued
         else:
-            chatbot_index = self.performance.performance_chatbot_index
+            raise Exception("No performer queued")
+            # chatbot_index = self.performance.performance_chatbot_index
 
+        # Retrieve chatbot reference
         chatbot = self.performance.chatbots[chatbot_index]
-
-        prompt = ""
+        current_state = len(self.performance.working_script)
 
         # If chatbot hasn't been initialized or ignores context
-        if self.performance.chatbot_states[chatbot_index] == 0 or not chatbot.keep_context:
+        chatbot_state = self.performance.chatbot_states[chatbot_index]
+        if chatbot_state == 0 or not chatbot.keep_context:
             # Update chatbot state
-            self.performance.chatbot_states[chatbot_index] = len(self.performance.working_script)
+            self.performance.chatbot_states[chatbot_index] = current_state
 
             if __debug__:
                 print("Initializing chatbot context for", chatbot.name, "...")
@@ -364,16 +384,15 @@ class Generator():
         else:
             # Determine how far behind chatbot context is
             #@REVISIT optimization
-            chatbot_state = self.performance.chatbot_states[chatbot_index]
-            context_behind = len(self.performance.working_script) - chatbot_state
+            lines_behind = current_state - chatbot_state
 
             if __debug__:
-                print("Chatbot context is", context_behind, "lines behind.")
+                print("Chatbot context is", lines_behind, "lines behind.")
 
             # If chatbot context is behind
-            if context_behind > 0:
+            if lines_behind > 0:
                 if __debug__:
-                    print(f"Adding {context_behind} lines to chatbot prompt...")
+                    print(f"Adding {lines_behind} lines to chatbot prompt...")
 
                 # Add missing lines to prompt
                 missing_lines = self.performance.working_script[chatbot_state:]
@@ -387,8 +406,7 @@ class Generator():
                 self.queued_performer = next_performer
 
                 # Update chatbot state
-                self.performance.chatbot_states[chatbot_index] = len(self.performance.working_script)
-
+                self.performance.chatbot_states[chatbot_index] = current_state
         return prompt
 
     @staticmethod
@@ -516,33 +534,42 @@ class Generator():
         return prompt_string
 
     # Parse chatbot response and return dialogue string
-    def parse_chatbot_response(self,
-                               response: str,
-                               chatbot: AutoChatbot,
-                               next_performer: Optional[Performer] = None
-                               ) -> List[ScriptComponent]:
+    def parse_response(self,
+                       response: str,
+                       chatbot: AutoChatbot,
+                       next_performer: Optional[Performer] = None,
+                       working_component: Optional[ScriptComponent] = None
+                       ) -> List[ScriptComponent]:
         """
         Parse a chatbot response and return a list of script components.
         """
 
         # Parser flags
-        flags = {
-            "ignore_first_char_newline": False,
-            "discard_multiple_char_names": False
-        }
+        flags = []
 
         # Set flags based on chatbot
         match chatbot.name.lower():
             case "gpt2":
-                flags["ignore_first_char_newline"] = True
-                flags["discard_multiple_char_names"] = True
+                flags.append("ignore_first_char_newline")
+                # flags.append("discard_multiple_char_names") #@REVISIT not in use
 
             case _:
                 if __debug__ and self.verbose:
-                    print("WARNING: No flags set for chatbot", chatbot.name)
+                    warn("No flags set for chatbot", chatbot.name)
 
+        # If working_component, prepend it to response
+        if working_component:
+            response = working_component.to_str() + response
+
+            if next_performer:
+                if __debug__:
+                    warn("next_performer passed with " \
+                            + "working_component; ignoring next_performer")
+        
         # If next_performer, prepend name to response to match chatbot query
-        if next_performer:
+        #@REVISIT using elif is kinda weird; how can we make what's happening here
+        # semantically clearer?
+        elif next_performer:
             #@REVISIT ugly architecture
             character_name = next_performer.character_name.upper() \
                     + self.break_character_name()
@@ -552,89 +579,4 @@ class Generator():
         script_components = Interpreter.interpret(response, flags)
 
         return script_components
-
-    # def parse_single_line(self, line: str, flags: dict):
-    #     if flags["discard_multiple_char_names"]:
-    #         # Extract character headers from line into list
-    #         header_regex = r"[A-Z ]+:"
-    #         character_headers = re.findall(header_regex, line)
-
-    #         # If there are multiple character headers
-    #         if(len(character_headers) > 1):
-    #             # Split line on instances of character headers
-    #             inner_lines = re.split(header_regex, line)
-
-    #             # Remove text before first character header
-    #             #@DOUBLE-CHECK
-    #             inner_lines = inner_lines[1:]
-
-    #             if __debug__:
-    #                 print("character_headers:", character_headers)
-    #                 print("inner_lines:", inner_lines)
-
-    #             # Attempt to validate each inner line
-    #             for i, inner_line in enumerate(inner_lines):
-    #                 # If inner line is empty, skip
-    #                 if(inner_line == ""):
-    #                     continue
-
-    #                 # Prepend character header to inner line
-    #                 #@REVISIT i-1 is always correct, right?
-    #                 inner_line = character_headers[i-1].strip() \
-    #                         + inner_line
-
-    #                 # Parse inner line into a Dialogue object
-    #                 try:
-    #                     line_obj = Dialogue.from_str(inner_line)
-    #                     dialogue_lines.append(line_obj)
-    #                 except ValueError as e: #@REVISIT ugly
-    #                     continue
-
-    #         # Parse line into a Dialogue object
-    #         line_obj = Dialogue.from_str(line)
-    #         dialogue_lines.append(line_obj)
-
-    #     return dialogue_lines
-    # def parse_single_line(self, line: str, flags: dict):
-    #     if flags["discard_multiple_char_names"]:
-    #         # Extract character headers from line into list
-    #         header_regex = r"[A-Z ]+:"
-    #         character_headers = re.findall(header_regex, line)
-
-    #         # If there are multiple character headers
-    #         if(len(character_headers) > 1):
-    #             # Split line on instances of character headers
-    #             inner_lines = re.split(header_regex, line)
-
-    #             # Remove text before first character header
-    #             #@DOUBLE-CHECK
-    #             inner_lines = inner_lines[1:]
-
-    #             if __debug__:
-    #                 print("character_headers:", character_headers)
-    #                 print("inner_lines:", inner_lines)
-
-    #             # Attempt to validate each inner line
-    #             for i, inner_line in enumerate(inner_lines):
-    #                 # If inner line is empty, skip
-    #                 if(inner_line == ""):
-    #                     continue
-
-    #                 # Prepend character header to inner line
-    #                 #@REVISIT i-1 is always correct, right?
-    #                 inner_line = character_headers[i-1].strip() \
-    #                         + inner_line
-
-    #                 # Parse inner line into a Dialogue object
-    #                 try:
-    #                     line_obj = Dialogue.from_str(inner_line)
-    #                     dialogue_lines.append(line_obj)
-    #                 except ValueError as e: #@REVISIT ugly
-    #                     continue
-
-    #         # Parse line into a Dialogue object
-    #         line_obj = Dialogue.from_str(line)
-    #         dialogue_lines.append(line_obj)
-
-    #     return dialogue_lines
 

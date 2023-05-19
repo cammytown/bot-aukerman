@@ -16,6 +16,7 @@ from .generator import Generator
 from .interpreter import Interpreter
 
 from .constants import ScriptFormat, ScriptComponentType
+from .logging import warn
 
 from llmber import AutoChatbot
 
@@ -198,7 +199,7 @@ class Performance:
         self.initialize_stt()
 
         if(not self.stt):
-            print("WARNING: STT engine not initialized; using text input")
+            warn("STT engine not initialized; using text input")
             self.start_interactive_text()
         else:
             print("STT engine initialized; using audio input")
@@ -209,11 +210,19 @@ class Performance:
         Start an interactive performance with human performers using text input.
         """
 
+        if __debug__:
+            print("DEBUG: starting interactive performance with text input")
+
         # Attempt to initialize TTS engines
         self.initialize_tts()
 
         user_input = ""
         while user_input != "q":
+            if __debug__:
+                print("DEBUG: running interactive loop")
+                print("=" * 50)
+                print("=" * 50)
+
             # Generate dialogue for characters
             dialogue_components = self.generate_dialogue(1)
 
@@ -224,10 +233,10 @@ class Performance:
             user_input = input("")
             if user_input:
                 try:
-                    dialogue = Dialogue.from_str(user_input)
-                    self.add_dialogue(dialogue)
+                    self.add_dialogue(user_input)
+
                 except ValueError as e:
-                    print(f"WARNING: invalid user input dialogue: {user_input}")
+                    warn(f"invalid user input dialogue: {user_input}")
                     print(e)
 
     def start_interactive_audio(self):
@@ -277,7 +286,7 @@ class Performance:
                 self.perform_components(dialogue_components)
 
             except ValueError as e:
-                print(f"WARNING: invalid user input dialogue: {text}")
+                warn(f"invalid user input dialogue: {text}")
                 print(e)
 
     def add_performer(self, performer: Performer):
@@ -329,9 +338,11 @@ class Performance:
         """
 
         # Add scene header to working script
-        script_component = SceneHeader.from_str(scene_header)
+        # script_component = SceneHeader.from_str(scene_header)
+        components = Interpreter.interpret(text = scene_header,
+                                           as_type = SceneHeader)
 
-        self.add_component(script_component)
+        self.add_component(components[0])
 
     def add_description(self, description: str):
         """
@@ -339,9 +350,10 @@ class Performance:
         """
 
         # Add description to working script
-        script_component = SceneAction.from_str(description)
+        components = Interpreter.interpret(text = description,
+                                           as_type = SceneAction)
 
-        self.add_component(script_component)
+        self.add_component(components[0])
 
     # Add one or multiple instances of dialogue to the dialogue history
     def add_dialogue(self, dialogue) -> bool:
@@ -360,7 +372,9 @@ class Performance:
         elif isinstance(dialogue, str):
             # Try to convert the string to a Dialogue
             try:
-                dialogue = Dialogue.from_str(dialogue)
+                components = Interpreter.interpret(text = dialogue,
+                                                   as_type = Dialogue)
+                dialogue = components[0]
 
             # If the string is not a valid Dialogue
             except ValueError as e:
@@ -392,7 +406,9 @@ class Performance:
         self.working_script.append(component)
 
         # Write dialogue line to file
-        with open(self.logdir + "current-dialogue-history.txt", "a+") as f:
+        with open(self.logdir + "current-dialogue-history.txt",
+                  mode = "a+",
+                  encoding = "utf-8") as f:
             f.write(component.to_str())
             f.write(Generator.break_component(self.script_format))
 
@@ -477,7 +493,7 @@ class Performance:
 
             if __debug__ and self.verbose:
                 print("=====================================")
-                print("Performing line for",
+                print("Performing dialogue for",
                       script_component.character_name,
                       ": ",
                       script_component.dialogue)
@@ -488,7 +504,7 @@ class Performance:
                 try:
                     performer.perform(script_component, self.tts)
                 except TypeError as e:
-                    print(f"WARNING: {e}")
+                    warn(f"{e}")
 
                 # if(self.tts):
                 #     self.tts.say(script_component.dialogue,
@@ -502,4 +518,6 @@ class Performance:
 
         # If logdir is set, write message to file
         if(self.logdir):
-            open(self.logdir + "log.txt", "a").write(message)
+            open(self.logdir + "log.txt",
+                 mode = "a",
+                 encoding = "utf-8").write(message)
