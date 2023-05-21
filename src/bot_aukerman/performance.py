@@ -3,6 +3,8 @@ import datetime
 import appdirs
 from typing import Optional, List, NewType
 
+import simpleaudio as sa
+
 from .performer import Performer
 from .human_performer import HumanPerformer
 from .bot_performer import BotPerformer
@@ -81,6 +83,9 @@ class Performance:
     performers: dict
     bot_performers: list = []
     human_performers: list = []
+
+    # Currently playing audio object
+    active_play_obj: Optional[sa.PlayObject] = None
 
     # Characters who have spoken
     character_history: list = []
@@ -482,15 +487,6 @@ class Performance:
 
         # If line is a dialogue line
         elif isinstance(script_component, Dialogue):
-            # Check if performer exists in performance
-            if script_component.character_name not in self.performers:
-                raise Exception("Performer",
-                                script_component.character_name,
-                                "not found in performance.")
-
-            # Get the performer for the line
-            performer = self.performers[script_component.character_name]
-
             if __debug__ and self.verbose:
                 print("=====================================")
                 print("Performing dialogue for",
@@ -498,11 +494,16 @@ class Performance:
                       ": ",
                       script_component.dialogue)
 
+            # Get performer
+            character_name = script_component.character_name
+            performer = self.get_performer(character_name)
+
             # If the performer is a BotPerformer
             if isinstance(performer, BotPerformer):
                 # Perform the line
                 try:
-                    performer.perform(script_component, self.tts)
+                    self.perform_dialogue(script_component)
+                    # performer.perform(script_component, self.tts)
                 except TypeError as e:
                     warn(f"{e}")
 
@@ -511,6 +512,80 @@ class Performance:
                 #                  speaker=performer.speaker)
                 # else:
                 #     print(f"WARNING: No TTS set for bot {performer.speaker}")
+
+    def perform_dialogue(self, dialogue):
+        tts = self.tts
+        args = {}
+
+        # If dialogue is string
+        if isinstance(dialogue, str): #@REVISIT remove; only accept Dialogue?
+            args["text"] = dialogue
+
+        elif isinstance(dialogue, Dialogue):
+            # Get performer
+            performer = self.get_performer(dialogue.character_name)
+            args["performer"] = performer
+
+            # Assert performer is a BotPerformer (has tts and speaker attributes)
+            assert isinstance(performer, BotPerformer)
+
+            # If performer has a tts
+            if performer.tts:
+                tts = performer.tts
+
+            # Set speaker #@REVISIT probably will error on single-speaker models
+            speaker = performer.speaker
+
+            # Extract speech from dialogue component
+            args["text"] = self.extract_speech_from_dialogue(dialogue)
+
+        else:
+            raise TypeError(f"Invalid dialogue type: {type(dialogue)}")
+
+        # If a TTS implementation is available
+        if tts:
+            # Say dialogue
+            play_obj = tts.say(**args)
+
+            # Store play_obj for possible interruption
+            self.active_play_obj = play_obj
+            
+            return play_obj
+
+        # If no TTS implementation is available
+        else:
+            if isinstance(dialogue, Dialogue):
+                print(f"WARNING: No TTS for {dialogue.character_name}")
+            else:
+                print("WARNING: No TTS for dialogue")
+
+    def extract_speech_from_dialogue(self, dialogue: Dialogue):
+        # Split dialogue into parentheticals and dialogue
+        subcomponents = dialogue.split_parens_and_dialogue()
+        
+        # Filter out parenthetical subcomponents
+        #@TODO allow parentheticals to influence TTS
+        spoken_dialogue = ""
+        for subcomponent in subcomponents:
+            if(subcomponent["type"] == "dialogue"):
+                spoken_dialogue += subcomponent["text"]
+
+        #@TODO-4 replace digits with words; replace …; replace & with and,
+        #@ replace —; and others not in tts vocab
+
+        return spoken_dialogue
+
+    def get_performer(self, character_name: str) -> Performer:
+        # Check if performer exists in performance
+        if character_name not in self.performers:
+            raise Exception("Performer",
+                            character_name,
+                            "not found in performance.")
+
+        # Get the performer for the line
+        performer = self.performers[character_name]
+
+        return performer
 
     def log(self, message):
         if __debug__ and self.verbose:

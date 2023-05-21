@@ -10,6 +10,7 @@ if verbose:
 # Initialize a performance
 # model_config = { "engine": "rwkv" }
 model_config = { "model": "gpt2-large" }
+# model_config = { "model": "gpt2" }
 # model_config = { "model": "gpt4all-7B-unfiltered", "engine": "llamacpp" }
 # model_config = { "model": "text-ada-001", "engine": "openai", }
 # model_config = { "engine": "openai", }
