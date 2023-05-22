@@ -6,7 +6,6 @@ import time
 from .performance import Performance
 
 #@TODO move to separate package?
-
 class Server:
     socket: zmq.Socket
     performance: Performance
