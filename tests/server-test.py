@@ -15,6 +15,7 @@ else:
     # Run this script as a subprocess with --server flag
     server = subprocess.Popen([sys.executable, __file__, "--server"])
 
+    # Run a basic client
     try:
         print("Connecting to server")
         context = zmq.Context()

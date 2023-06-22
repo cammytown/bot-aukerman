@@ -12,9 +12,9 @@ dependencies = [
 	"zmq >=25.0.2, <26.0.0", # only for server
 
 	#@TODO: remove these when they're on pypi
-	"llmber @ git+https://github.com/cammytown/llmber.git",
-	"vosk_imp @ git+https://github.com/cammytown/vosk-imp.git",
-	"coqui_imp @ git+https://github.com/cammytown/coqui-imp.git",
+	#"llmber @ git+https://github.com/cammytown/llmber.git",
+	#"vosk_imp @ git+https://github.com/cammytown/vosk-imp.git",
+	#"coqui_imp @ git+https://github.com/cammytown/coqui-imp.git",
 ]
 
 [build-system]

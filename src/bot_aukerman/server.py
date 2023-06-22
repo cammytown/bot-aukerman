@@ -1,3 +1,11 @@
+"""
+Bot Aukerman server module.
+
+This module contains the Server class, which is responsible for receiving
+requests/data from other processes, processing them in the context of a
+Performance, and sending back a response.
+"""
+
 from typing import Optional
 import simpleaudio as sa
 import zmq
