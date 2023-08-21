@@ -194,6 +194,10 @@ class Performance:
 
         return chatbot_index
 
+    #@REVISIT using?
+    def start(self):
+        self.start_interactive();
+
     def start_interactive(self):
         """
         Start an interactive performance with human performers.
@@ -260,6 +264,8 @@ class Performance:
         if(not self.human_performers):
             raise RuntimeError("No human performers to assign STT to")
 
+        # Use VoskImp to handle speech process loop; pass in callback
+        #@REVISIT best architecture? flip it?
         self.stt.run(self.stt_callback)
 
     def stt_callback(self, text: str):
@@ -347,6 +353,11 @@ class Performance:
         components = Interpreter.interpret(text = scene_header,
                                            as_type = SceneHeader)
 
+        if not components:
+            #@REVISIT how do we want to handle this?
+            # raise ValueError("Invalid scene header:", scene_header)
+            return False
+
         self.add_component(components[0])
 
     def add_description(self, description: str):
@@ -357,6 +368,10 @@ class Performance:
         # Add description to working script
         components = Interpreter.interpret(text = description,
                                            as_type = SceneAction)
+
+        if not components:
+            # raise ValueError("Invalid description:", description)
+            return False
 
         self.add_component(components[0])
 
@@ -379,6 +394,11 @@ class Performance:
             try:
                 components = Interpreter.interpret(text = dialogue,
                                                    as_type = Dialogue)
+
+                if not components:
+                    # raise ValueError("Invalid dialogue:", dialogue)
+                    return False
+
                 dialogue = components[0]
 
             # If the string is not a valid Dialogue
@@ -421,14 +441,17 @@ class Performance:
 
     def generate_dialogue(self,
                           num_lines = 1,
+                          character_idx = None,
                           return_as = "list",
-                          ) -> List[Dialogue]:
+                          ):
         """
         Generate new dialogue for characters and add it to the working script.
         """
 
         # Generate dialogue
-        dialogue_components = Generator.generate(self, num_lines) #@REVISIT
+        dialogue_components = Generator.generate(self,
+                                                 num_lines,
+                                                 character_idx) #@REVISIT
 
         # Add dialogue lines to dialogue history
         self.add_dialogue(dialogue_components)

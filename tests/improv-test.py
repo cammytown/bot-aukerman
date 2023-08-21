@@ -1,4 +1,5 @@
 verbose = True
+
 if verbose:
     print("Importing modules...")
 
@@ -9,11 +10,13 @@ if verbose:
 
 # Initialize a performance
 # model_config = { "engine": "rwkv" }
-model_config = { "model": "gpt2-large" }
-# model_config = { "model": "gpt2" }
-# model_config = { "model": "gpt4all-7B-unfiltered", "engine": "llamacpp" }
-# model_config = { "model": "text-ada-001", "engine": "openai", }
-# model_config = { "engine": "openai", }
+model_config = {
+    "model": "gpt2-large"
+    # "model": "gpt2"
+    # "model": "gpt4all-7B-unfiltered", "engine": "llamacpp"
+    # "model": "text-ada-001", "engine": "openai",
+    # "engine": "openai",
+}
 
 performance = Performance(model_config = model_config,
                           resume_from_log = False)
@@ -30,13 +33,15 @@ human = HumanPerformer(
 talking_frog = BotPerformer(
     character_name="Frog",
     character_desc="A talking frog; extremely intelligent but very sarcastic and patronizing. Flawed character.",
+
     # model_config={ "model": "gpt2-large", },
 )
 
 homeless_man = BotPerformer(
     character_name="Homeless Man",
     character_desc="A homeless man; distraught about existential concerns and the state of society. Hates money. Hates capitalism. Refuses to participate.",
-    # model_config={ "model": "text-ada-001", "remote": "openai" },
+
+    # model_config={ "model": "text-ada-001", "engine": "openai" },
 )
 
 if verbose:

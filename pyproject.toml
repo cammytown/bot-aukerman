@@ -9,7 +9,8 @@ readme = "README.md"
 requires-python = ">=3.9.0,<3.11"
 dependencies = [
 	"appdirs >=1.4.4,<2.0.0",
-	"zmq >=25.0.2, <26.0.0", # only for server
+	"pyzmq >=25.0.2, <26.0.0", # only for server
+	"simpleaudio >=1.0.4,<2.0.0",
 
 	#@TODO: remove these when they're on pypi
 	#"llmber @ git+https://github.com/cammytown/llmber.git",

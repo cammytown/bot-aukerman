@@ -38,7 +38,9 @@ class Generator():
     @classmethod
     def generate(cls,
                  performance,
-                 num_lines: int = 1) -> List[Dialogue]:
+                 num_lines: int = 1,
+                 character_idx: Optional[int] = None
+                 ) -> List[Dialogue]:
         """
         Generate a script for a performance.
 
@@ -57,36 +59,54 @@ class Generator():
         generator = cls(performance)
 
         # Generate script
-        script_components = generator.generate_dialogue(num_lines=num_lines)
+        components = generator.generate_dialogue(num_lines=num_lines,
+                                                 character_idx=character_idx)
 
-        return script_components
+        return components
 
     def generate_dialogue(self,
-                          num_lines = 1) -> List[Dialogue]:
+                          num_lines = 1,
+                          character_idx: Optional[int] = None
+                          ) -> List[Dialogue]:
         """
         Generate dialogue for a performance.
         """
 
-        dialogue_components = [] #@REVISIT architecture
+        components = [] #@REVISIT architecture
 
         #@TODO optionally intelligently decide the next character, maybe
         # with aid of chatbot
 
         assert len(self.performance.bot_performers) > 0, "No bot performers"
 
-        #@TODO combine requests when possible (i.e. loop through characters
-        # and determine who shares chatbots, send minimal chatbot queries)
-        for line_index in range(num_lines): #@REVISIT architecture
-            bot_performer = self.pick_next_bot_performer()
+        # If character_idx is set
+        if character_idx is not None:
+            # Generate num_lines for specified bot character
+            bot_performer = self.performance.bot_performers[character_idx]
+            components = self.generate_performer_lines(bot_performer,
+                                                       num_lines)
+            return components
 
-            # Generate dialogue for that performer
-            if __debug__:
-                print("Generating dialogue for", bot_performer.character_name)
+        # If no character_idx is supplied
+        else:
+            components = []
 
-            dialogue_components = self.generate_performer_lines(bot_performer, 1)
+            # Generate num_lines for random bot characters
+            #@TODO combine requests when possible (i.e. loop through characters
+            # and determine who shares chatbots, send minimal chatbot queries)
+            for line_index in range(num_lines): #@REVISIT architecture
+                bot_performer = self.pick_next_bot_performer()
 
+                # Generate dialogue for that performer
+                if __debug__:
+                    print("Generating dialogue for", bot_performer.character_name)
 
-        return dialogue_components
+                component = self.generate_performer_lines(bot_performer,
+                                                          num_lines=1)
+                components.extend(component)
+
+            return components
+
 
     def pick_next_bot_performer(self) -> BotPerformer:
         """

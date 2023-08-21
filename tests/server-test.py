@@ -3,8 +3,9 @@ import subprocess
 import zmq
 from bot_aukerman.server import Server
 
-# If --server flag is set, run server
-if "--server" in sys.argv:
+# If --server-only flag is set, run server only
+#@REVISIT maybe do inverse
+if "--server-only" in sys.argv:
     print("Running server")
     server = Server()
     server.start()
@@ -12,8 +13,8 @@ if "--server" in sys.argv:
 else:
     print("Running client")
 
-    # Run this script as a subprocess with --server flag
-    server = subprocess.Popen([sys.executable, __file__, "--server"])
+    # Run this script as a subprocess with --server-only flag
+    server = subprocess.Popen([sys.executable, __file__, "--server-only"])
 
     # Run a basic client
     try:
@@ -25,7 +26,27 @@ else:
         user_input = None
         while user_input != 'q':
             user_input = input("Enter something: ")
-            request = { "type": "observe_user_input", "user_input": user_input }
+
+            if user_input == '1':
+                # Generate dialogue for character 1
+                request = {
+                        "type": "request_dialogue",
+                        "character_idx": 0
+                        }
+
+            elif user_input == '2':
+                # Generate dialogue for character 2
+                request = {
+                        "type": "request_dialogue",
+                        "character_idx": 1
+                        }
+
+            else:
+                request = {
+                        "type": "observe_user_input",
+                        "user_input": user_input
+                        }
+
             print("Sending request %s …" % request)
             socket.send_json(request)
 
