@@ -2,6 +2,8 @@ import os
 import datetime
 import appdirs
 from typing import Optional, List, NewType
+# from threading import Thread
+# import multiprocessing
 
 import simpleaudio as sa
 
@@ -173,6 +175,7 @@ class Performance:
 
         if(not self.stt and VoskImp):
             self.stt = VoskImp()
+            self.stt.start()
 
     def _init_chatbot(self, model_config: dict):
         #@TODO move into Generator if we move away from @classmethod
@@ -264,9 +267,19 @@ class Performance:
         if(not self.human_performers):
             raise RuntimeError("No human performers to assign STT to")
 
-        # Use VoskImp to handle speech process loop; pass in callback
-        #@REVISIT best architecture? flip it?
-        self.stt.run(self.stt_callback)
+        while True:
+            # Listen for audio input
+            text = self.stt.update()
+
+            # If audio input is detected
+            if text:
+                self.stt_callback(text)
+
+                # Generate dialogue for characters
+                dialogue_components = self.generate_dialogue(1)
+
+                # Perform dialogue
+                self.perform_components(dialogue_components)
 
     def stt_callback(self, text: str):
         """
@@ -293,8 +306,9 @@ class Performance:
                 # Generate dialogue for bot character(s)
                 dialogue_components = self.generate_dialogue(1)
 
-                # Perform dialogue
-                self.perform_components(dialogue_components)
+                if dialogue_components:
+                    # Perform dialogue
+                    self.perform_components(dialogue_components)
 
             except ValueError as e:
                 warn(f"invalid user input dialogue: {text}")
