@@ -1,6 +1,7 @@
 import os
 import datetime
 import appdirs
+import time
 from typing import Optional, List, NewType
 # from threading import Thread
 # import multiprocessing
@@ -78,6 +79,7 @@ class Performance:
 
     # STT engine
     stt: Optional[VoskImp] = None
+    is_listening: bool = False
 
     verbose: bool = False
 
@@ -160,10 +162,21 @@ class Performance:
                 script_components = Interpreter.interpret(file_lines)
                 self.working_script = script_components
 
+    #@REVISIT naming
+    def get_script(self):
+        """
+        Get the working script.
+        """
+
+        # Return the working script_components as a string
+        return self.components_to_str(self.working_script)
+
     def initialize_tts(self):
         """
         Initialize TTS engine.
         """
+
+        print("bot-aukerman: Initializing TTS")
 
         if(not self.tts and CoquiImp):
             self.tts = CoquiImp("tts_models/multilingual/multi-dataset/your_tts")
@@ -172,6 +185,8 @@ class Performance:
         """
         Initialize STT engine.
         """
+
+        print("bot-aukerman: Initializing STT")
 
         if(not self.stt and VoskImp):
             self.stt = VoskImp()
@@ -197,18 +212,32 @@ class Performance:
 
         return chatbot_index
 
-    #@REVISIT using?
+    #@TODO need to reevaluate all of these start_* methods; useful? good?
     def start(self):
-        self.start_interactive();
+        """
+        Initialize the performance.
+        """
+
+        # Attempt to initialize TTS and STT engines
+        self.initialize_tts()
+        self.initialize_stt()
+
+    def start_audio(self):
+        """
+        Start an audio performance.
+        """
+
+        self.start()
+
+        if(not self.stt):
+            raise RuntimeError("STT engine not initialized")
 
     def start_interactive(self):
         """
         Start an interactive performance with human performers.
         """
 
-        # Attempt to initialize TTS and STT engines
-        self.initialize_tts()
-        self.initialize_stt()
+        self.start()
 
         if(not self.stt):
             warn("STT engine not initialized; using text input")
@@ -225,7 +254,7 @@ class Performance:
         if __debug__:
             print("DEBUG: starting interactive performance with text input")
 
-        # Attempt to initialize TTS engines
+        # Attempt to initialize TTS engines if necessary
         self.initialize_tts()
 
         user_input = ""
@@ -235,7 +264,7 @@ class Performance:
                 print("=" * 50)
                 print("=" * 50)
 
-            # Generate dialogue for characters
+            # Generate dialogue for bot characters
             dialogue_components = self.generate_dialogue(1)
 
             # Perform dialogue
@@ -256,63 +285,82 @@ class Performance:
         Start an interactive performance with human performers using audio input.
         """
 
-        # Attempt to initialize TTS and STT engines
-        self.initialize_tts()
-        self.initialize_stt()
+        self.start_audio()
+
+        while True:
+            self.update_audio()
+
+            # Sleep briefly
+            time.sleep(0.1)
+
+    #@REVISIT naming
+    def update_audio(self):
+        assert self.stt
+
+        # Listen for audio input
+        text = self.stt.update()
+
+        # If audio input is detected
+        if text:
+            # Observe human dialogue
+            human_dialogue = self.observe_human_dialogue(text)
+
+            # Generate dialogue for bot characters
+            bot_dialogue = self.generate_dialogue(1)
+
+            # Perform dialogue
+            self.perform_components(bot_dialogue)
+
+            components = human_dialogue + bot_dialogue
+
+            return components
+
+        else:
+            return None
+
+    def toggle_microphone_listen(self):
+        """
+        Toggle listening for audio input.
+        """
 
         if(not self.stt):
             raise RuntimeError("STT engine not initialized")
 
-        # If no human performers
-        if(not self.human_performers):
-            raise RuntimeError("No human performers to assign STT to")
+        if(self.is_listening):
+            self.stt.stop()
+            self.is_listening = False
+        else:
+            self.stt.start()
+            self.is_listening = True
 
-        while True:
-            # Listen for audio input
-            text = self.stt.update()
-
-            # If audio input is detected
-            if text:
-                self.stt_callback(text)
-
-                # Generate dialogue for characters
-                dialogue_components = self.generate_dialogue(1)
-
-                # Perform dialogue
-                self.perform_components(dialogue_components)
-
-    def stt_callback(self, text: str):
+    def observe_human_dialogue(self, text: str):
         """
-        Callback function for STT.
+        Observe human dialogue.
         """
-        print(f"stt_callback: {text}")
-
+        print("STT:", text)
         #@TODO multiple stt instances/engines?
-        #@TODO handle multiple performers? voice detection? round-robin?
+
+        if not text:
+            #@REVISIT
+            return
 
         # If no human performers
         if(not self.human_performers):
             raise RuntimeError("No human performers to assign STT to")
 
         # Get the first human performer
+        #@TODO handle multiple performers? voice detection? round-robin?
         performer = self.human_performers[0]
 
-        if text:
-            try:
-                # Create dialogue object
-                dialogue = Dialogue(performer.character_name, text)
-                self.add_dialogue(dialogue)
+        try:
+            # Create dialogue object
+            dialogue = Dialogue(performer.character_name, text)
+            self.add_dialogue(dialogue)
+            return [dialogue]
 
-                # Generate dialogue for bot character(s)
-                dialogue_components = self.generate_dialogue(1)
-
-                if dialogue_components:
-                    # Perform dialogue
-                    self.perform_components(dialogue_components)
-
-            except ValueError as e:
-                warn(f"invalid user input dialogue: {text}")
-                print(e)
+        except ValueError as e:
+            warn(f"invalid user input dialogue: {text}")
+            print(e)
 
     def add_performer(self, performer: Performer):
         """
@@ -401,7 +449,6 @@ class Performance:
             for line in dialogue:
                 self.add_dialogue(line)
 
-            return True #@REVISIT kinda ugly architecture
         # If dialogue is a string
         elif isinstance(dialogue, str):
             # Try to convert the string to a Dialogue
@@ -413,7 +460,8 @@ class Performance:
                     # raise ValueError("Invalid dialogue:", dialogue)
                     return False
 
-                dialogue = components[0]
+                for component in components:
+                    self.add_component(component)
 
             # If the string is not a valid Dialogue
             except ValueError as e:
@@ -423,16 +471,12 @@ class Performance:
 
         # If dialogue is a Dialogue
         elif isinstance(dialogue, Dialogue):
-            pass
+            self.add_component(dialogue)
 
         # If dialogue is not a Dialogue or a string
         else:
             print("ERROR: Invalid dialogue type:", type(dialogue))
 
-        self.add_component(dialogue)
-
-        # Add performer to character_history
-        self.character_history.append(dialogue.character_name.upper())
 
         return True
 
@@ -444,7 +488,12 @@ class Performance:
         # Add component to working script
         self.working_script.append(component)
 
-        # Write dialogue line to file
+        # If component is Dialogue
+        if isinstance(component, Dialogue):
+            # Add performer to character_history
+            self.character_history.append(component.character_name.upper())
+
+        # Write component line to file
         with open(self.logdir + "current-dialogue-history.txt",
                   mode = "a+",
                   encoding = "utf-8") as f:

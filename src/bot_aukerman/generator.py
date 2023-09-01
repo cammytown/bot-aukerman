@@ -202,7 +202,7 @@ class Generator():
         attempt = 0
         while not valid_generation:
             # Generate response
-            response = chatbot.request_string(n_tokens = 512,
+            response = chatbot.request_string(n_tokens = 100,
                                               stop_sequences = stop_sequences)
 
             # Log the response
