@@ -34,14 +34,14 @@ human = HumanPerformer(
 # Create bot performers
 talking_frog = BotPerformer(
     character_name="Frog",
-    character_desc="A talking frog; extremely intelligent but very sarcastic and patronizing. Flawed character.",
+    character_desc="A talking frog; extremely intelligent but very sarcastic and patronizing.",
 
     # model_config={ "model": "gpt2-large", },
 )
 
 homeless_man = BotPerformer(
     character_name="Homeless Man",
-    character_desc="A homeless man; distraught about existential concerns and the state of society. Hates money. Hates capitalism. Refuses to participate.",
+    character_desc="A homeless man; distraught about existential concerns and the state of society. Hates money. Hates capitalism.",
 
     # model_config={ "model": "text-ada-001", "engine": "openai" },
 )

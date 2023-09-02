@@ -15,7 +15,7 @@ class Interpreter:
     #@REVISIT architecture between this and parse_text
     @classmethod
     def interpret(cls,
-                  text,
+                  text: str,
                   flags = [],
                   as_type = None
                   ) -> List[ScriptComponent]:
@@ -43,7 +43,7 @@ class Interpreter:
         return script_components
 
     #@REVISIT architecture between this and interpret
-    def parse_text(self, text, flags = []) -> List[ScriptComponent]:
+    def parse_text(self, text: str, flags = []) -> List[ScriptComponent]:
         # Reset interpreter state
         self.reset_state()
 
@@ -186,7 +186,7 @@ class Interpreter:
                 return None
 
     #@REVISIT not currently in use
-    def parse_single_line_dialogue(self, text):
+    def parse_single_line_dialogue(self, text: str):
         # Split on colon
         colon_split = text.split(":", 1)
 

@@ -123,18 +123,20 @@ class Generator():
 
         # Remove the last performer from the list of bot performers if bot
         #@REVISIT architecture
-        last_character_name = self.performance.character_history[-1]
-        if last_character_name not in self.performance.performers:
-            #@TODO handle this better; maybe add character to performers?
+        if self.performance.character_history:
+            last_character_name = self.performance.character_history[-1]
+            if last_character_name not in self.performance.performers:
+                #@TODO handle this better; maybe add character to performers?
 
-            if __debug__:
-                warn("last character not in known performers")
+                if __debug__:
+                    warn("last character not in known performers")
 
-            return random.choice(bot_performers)
+                return random.choice(bot_performers)
 
-        last_performer = self.performance.performers[last_character_name.upper()]
-        if last_performer in bot_performers:
-            bot_performers.remove(last_performer)
+            upper_name = last_character_name.upper()
+            last_performer = self.performance.performers[upper_name]
+            if last_performer in bot_performers:
+                bot_performers.remove(last_performer)
 
         # Pick a random bot performer
         bot_performer = random.choice(bot_performers)

@@ -130,7 +130,7 @@ class Performance:
 
         # Load current-dialogue-history.txt into working_script if it exists:
         if(resume_from_log):
-            self.load_dialogue_history("current-dialogue-history.txt")
+            self.load_script_file("current-dialogue-history.txt")
 
         # If logdir is set and current-dialogue-history.txt exists, rename it:
         elif(self.logdir):
@@ -148,19 +148,26 @@ class Performance:
                 os.rename(self.logdir + "current-dialogue-history.txt",
                           f"{self.logdir}dialogue-history_{file_creation_time}.txt")
 
-    def load_dialogue_history(self, filename: str):
+    def load_script_file(self, filename: str):
         """
         Load dialogue history from a file into working_script.
         """
+
         if(os.path.isfile(self.logdir + filename)):
             with open(self.logdir + filename, "r") as f:
                 dialogue_file_str = f.read()
 
-                # Split on newlines
-                file_lines = dialogue_file_str.splitlines()
+            self.load_script_string(dialogue_file_str)
 
-                script_components = Interpreter.interpret(file_lines)
-                self.working_script = script_components
+    def load_script_string(self, script_str: str):
+        # # Split on newlines
+        # lines = script_str.splitlines()
+
+        # Interpret lines
+        script_components = Interpreter.interpret(script_str)
+
+        # Update working script
+        self.working_script = script_components
 
     #@REVISIT naming
     def get_script(self):
@@ -305,13 +312,7 @@ class Performance:
             # Observe human dialogue
             human_dialogue = self.observe_human_dialogue(text)
 
-            # Generate dialogue for bot characters
-            bot_dialogue = self.generate_dialogue(1)
-
-            # Perform dialogue
-            self.perform_components(bot_dialogue)
-
-            components = human_dialogue + bot_dialogue
+            components = human_dialogue
 
             return components
 
