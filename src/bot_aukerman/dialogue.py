@@ -26,12 +26,12 @@ class Dialogue(ScriptComponent):
         #     parenthetical = f"({self.parenthetical})"
 
         if(multi_line):
-            return f"{self.character_name}\n{self.dialogue}"
+            return f"{self.character_name.upper()}\n{self.dialogue}"
             # if(parenthetical):
             #     parenthetical = "\n" + parenthetical
             # return f"{self.character_name}{parenthetical}\n{self.dialogue}"
         else:
-            return f"{self.character_name}: " + self.dialogue.join("\n")
+            return f"{self.character_name.upper()}: " + self.dialogue.join("\n")
             # return f"{self.character_name}{parenthetical}: {self.dialogue}"
 
     def __str__(self):

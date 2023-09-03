@@ -198,6 +198,7 @@ class Performance:
         if(not self.stt and VoskImp):
             self.stt = VoskImp()
             self.stt.start()
+            self.is_listening = True
 
     def _init_chatbot(self, model_config: dict):
         #@TODO move into Generator if we move away from @classmethod
@@ -333,6 +334,8 @@ class Performance:
         else:
             self.stt.start()
             self.is_listening = True
+
+        return self.is_listening
 
     def observe_human_dialogue(self, text: str):
         """

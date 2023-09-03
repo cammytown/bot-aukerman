@@ -13,7 +13,7 @@ if verbose:
 model_config = {
     "model": "gpt2-large",
     "use_cuda": True,
-    "max_context_length": 768, 
+    "max_context_length": 300, 
     # "model": "gpt2"
     # "model": "gpt4all-7B-unfiltered", "engine": "llamacpp"
     # "model": "text-ada-001", "engine": "openai",
