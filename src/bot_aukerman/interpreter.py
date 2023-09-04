@@ -44,6 +44,14 @@ class Interpreter:
 
     #@REVISIT architecture between this and interpret
     def parse_text(self, text: str, flags = []) -> List[ScriptComponent]:
+        """
+        Parse text as a script.
+        """
+
+        if text is None:
+            #@REVISIT
+            raise ValueError("text is None")
+
         # Reset interpreter state
         self.reset_state()
 

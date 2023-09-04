@@ -17,6 +17,10 @@ from .logging import warn
 from llmber import AutoChatbot
 
 class Generator():
+    """
+    Generator class for generating scripts.
+    """
+
     verbose: bool = True
 
     performance = None #@TODO type hinting causes circular import
@@ -69,7 +73,8 @@ class Generator():
                           character_idx: Optional[int] = None
                           ) -> List[Dialogue]:
         """
-        Generate dialogue for a performance.
+        Generate dialogue for a performance, optionally for a specific bot
+        character.
         """
 
         components = [] #@REVISIT architecture
@@ -79,7 +84,7 @@ class Generator():
 
         assert len(self.performance.bot_performers) > 0, "No bot performers"
 
-        # If character_idx is set
+        # If character_idx is set (specific bot character)
         if character_idx is not None:
             # Generate num_lines for specified bot character
             bot_performer = self.performance.bot_performers[character_idx]
@@ -87,7 +92,7 @@ class Generator():
                                                        num_lines)
             return components
 
-        # If no character_idx is supplied
+        # If no character_idx is supplied, generate dialogue for a random bot
         else:
             components = []
 
@@ -382,12 +387,14 @@ class Generator():
 
         # Retrieve chatbot reference
         chatbot = self.performance.chatbots[chatbot_index]
+
+        # Determine current state of working script
         current_state = len(self.performance.working_script)
 
-        # If chatbot hasn't been initialized or ignores context
+        # If chatbot hasn't been initialized or doesn't keep context
         chatbot_state = self.performance.chatbot_states[chatbot_index]
         if chatbot_state == 0 or not chatbot.keep_context:
-            # Update chatbot state
+            # Update chatbot state to current state
             self.performance.chatbot_states[chatbot_index] = current_state
 
             if __debug__:
@@ -402,19 +409,19 @@ class Generator():
                 prompt += next_performer.character_name.upper()
                 prompt += self.break_character_name()
 
-        # If chatbot context has been initialized
+        # If chatbot context has been initialized but is behind
         else:
             # Determine how far behind chatbot context is
             #@REVISIT optimization
-            lines_behind = current_state - chatbot_state
+            comps_behind = current_state - chatbot_state
 
             if __debug__:
-                print("Chatbot context is", lines_behind, "lines behind.")
+                print("Chatbot context is", comps_behind, "lines behind.")
 
             # If chatbot context is behind
-            if lines_behind > 0:
+            if comps_behind > 0:
                 if __debug__:
-                    print(f"Adding {lines_behind} lines to chatbot prompt...")
+                    print(f"Adding {comps_behind} lines to chatbot prompt...")
 
                 # Add missing lines to prompt
                 missing_lines = self.performance.working_script[chatbot_state:]
@@ -429,6 +436,7 @@ class Generator():
 
                 # Update chatbot state
                 self.performance.chatbot_states[chatbot_index] = current_state
+
         return prompt
 
     @staticmethod

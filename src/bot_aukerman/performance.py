@@ -65,7 +65,8 @@ class Performance:
     #@REVISIT consider moving into Generator if we refactor away from classmethod
     chatbots: List[AutoChatbot] = []
 
-    # How many script components each chatbot has in its context
+    # An array of integers representing how many script components each chatbot
+    # has in its context.
     chatbot_states = []
 
     # Performance (fallback) chatbot config
@@ -160,8 +161,19 @@ class Performance:
             self.load_script_string(dialogue_file_str)
 
     def load_script_string(self, script_str: str):
-        # # Split on newlines
-        # lines = script_str.splitlines()
+        """
+        Load dialogue history from a string into working_script as components.
+        """
+
+        # If working_script is not empty
+        if(self.working_script):
+            # Warn user that working_script will be overwritten
+            print("WARNING: working_script is not empty; " \
+                  + "loading script will overwrite it.")
+
+            # Reset performance
+            #@REVISIT maybe don't reset whole performance?
+            self.reset()
 
         # Interpret lines
         script_components = Interpreter.interpret(script_str)
@@ -177,6 +189,25 @@ class Performance:
 
         # Return the working script_components as a string
         return self.components_to_str(self.working_script)
+
+    def reset(self):
+        """
+        Reset the performance.
+        """
+
+        # Reset working script
+        self.working_script = []
+
+        # Reset character history
+        self.character_history = []
+
+        # Reset chatbots
+        for chatbot in self.chatbots:
+            chatbot.clear_context()
+
+        # Reset chatbot states
+        for i in range(len(self.chatbot_states)):
+            self.chatbot_states[i] = 0
 
     def initialize_tts(self):
         """
@@ -639,7 +670,7 @@ class Performance:
 
             # Store play_obj for possible interruption
             self.active_play_obj = play_obj
-            
+
             return play_obj
 
         # If no TTS implementation is available
@@ -652,7 +683,7 @@ class Performance:
     def extract_speech_from_dialogue(self, dialogue: Dialogue):
         # Split dialogue into parentheticals and dialogue
         subcomponents = dialogue.split_parens_and_dialogue()
-        
+
         # Filter out parenthetical subcomponents
         #@TODO allow parentheticals to influence TTS
         spoken_dialogue = ""
