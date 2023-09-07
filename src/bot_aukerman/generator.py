@@ -587,6 +587,10 @@ class Generator():
                 if __debug__ and self.verbose:
                     warn("No flags set for chatbot", chatbot.name)
 
+        # Strip leading and trailing whitespace
+        #@REVISIT always?
+        response = response.strip()
+
         # If working_component, prepend it to response
         if working_component:
             response = working_component.to_str() + response

@@ -19,7 +19,7 @@ class Server:
     performance: Performance
 
     # Currently playing audio object
-    active_play_obj: Optional[sa.PlayObject] = None
+    # active_play_obj: Optional[sa.PlayObject] = None
 
     def __init__(self):
         # Init ZMQ socket
@@ -71,12 +71,12 @@ class Server:
     #     pass
 
     def observe_user_input(self, user_input: str):
-        self.interrupt()
-        self.active_play_obj = self.performance.perform_dialogue(user_input)
+        self.performance.interrupt()
+        # self.active_play_obj = self.performance.perform_dialogue(user_input)
 
     def request_dialogue(self, character_idx: str):
         self.performance.generate_dialogue(character_idx = character_idx)
     
-    def interrupt(self):
-        if(self.active_play_obj):
-            self.active_play_obj.stop()
+    # def interrupt(self):
+    #     if(self.active_play_obj):
+    #         self.active_play_obj.stop()

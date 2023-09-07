@@ -89,8 +89,8 @@ class Performance:
     bot_performers: list = []
     human_performers: list = []
 
-    # Currently playing audio object
-    active_play_obj: Optional[sa.PlayObject] = None
+    # Currently playing audio objects
+    active_play_objs: list = []
 
     # Characters who have spoken
     character_history: list = []
@@ -179,7 +179,8 @@ class Performance:
         script_components = Interpreter.interpret(script_str)
 
         # Update working script
-        self.working_script = script_components
+        # self.working_script = script_components
+        self.add_components(script_components)
 
     #@REVISIT naming
     def get_script(self):
@@ -515,6 +516,16 @@ class Performance:
 
         return True
 
+    def add_components(self, components: List[ScriptComponentType]):
+        """
+        Add a list of script components to the working script.
+        """
+
+        for component in components:
+            self.add_component(component)
+
+        return True
+
     def add_component(self, component: ScriptComponent):
         """
         Add a script component to the working script.
@@ -645,7 +656,7 @@ class Performance:
         elif isinstance(dialogue, Dialogue):
             # Get performer
             performer = self.get_performer(dialogue.character_name)
-            args["performer"] = performer
+            # args["performer"] = performer
 
             # Assert performer is a BotPerformer (has tts and speaker attributes)
             assert isinstance(performer, BotPerformer)
@@ -663,13 +674,20 @@ class Performance:
         else:
             raise TypeError(f"Invalid dialogue type: {type(dialogue)}")
 
+        if args["text"] == "":
+            return
+
+        print(f"Performing dialogue for {dialogue.character_name}: {args['text']}")
+
         # If a TTS implementation is available
         if tts:
+            # print(f"Using TTS: {tts.name}")
+
             # Say dialogue
             play_obj = tts.say(**args)
 
             # Store play_obj for possible interruption
-            self.active_play_obj = play_obj
+            self.active_play_objs.append(play_obj)
 
             return play_obj
 
@@ -679,6 +697,14 @@ class Performance:
                 print(f"WARNING: No TTS for {dialogue.character_name}")
             else:
                 print("WARNING: No TTS for dialogue")
+
+    def interrupt(self):
+        """
+        Interrupt any TTS.
+        """
+
+        for play_obj in self.active_play_objs:
+            play_obj.stop()
 
     def extract_speech_from_dialogue(self, dialogue: Dialogue):
         # Split dialogue into parentheticals and dialogue
