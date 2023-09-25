@@ -219,6 +219,7 @@ class Performance:
 
         if(not self.tts and CoquiImp):
             self.tts = CoquiImp("tts_models/multilingual/multi-dataset/your_tts")
+            # self.tts = CoquiImp("tts_models/en/ljspeech/glow-tts")
 
     def initialize_stt(self):
         """

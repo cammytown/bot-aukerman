@@ -10,14 +10,20 @@ if verbose:
 
 # Initialize a performance
 # model_config = { "engine": "rwkv" }
+# model_config = {
+#     "model": "gpt2-large",
+#     "use_cuda": True,
+#     "max_context_length": 300, 
+# }
+
+# model_config = {
+#     "model": "gpt4all-7B-unfiltered", "engine": "llamacpp"
+# }
+
 model_config = {
-    "model": "gpt2-large",
-    "use_cuda": True,
-    "max_context_length": 300, 
-    # "model": "gpt2"
-    # "model": "gpt4all-7B-unfiltered", "engine": "llamacpp"
-    # "model": "text-ada-001", "engine": "openai",
-    # "engine": "openai",
+    "model": "text-ada-001",
+    "engine": "openai",
+    "api_env_var": "OPENAI_API_KEY",
 }
 
 performance = Performance(model_config = model_config,

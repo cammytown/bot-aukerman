@@ -118,13 +118,15 @@ class Generator():
         Pick the next bot performer to generate dialogue for.
         """
 
+        assert len(self.performance.bot_performers) > 0, "No bot performers"
+
         # Make a copy of bot_performers
         #@REVISIT performance?
-        bot_performers = self.performance.bot_performers.copy()
+        bot_pool = self.performance.bot_performers.copy()
 
         # If bot_performers is empty, start a new copy
-        if not bot_performers:
-            bot_performers = self.performance.bot_performers.copy()
+        if not bot_pool:
+            bot_pool = self.performance.bot_performers.copy()
 
         # Remove the last performer from the list of bot performers if bot
         #@REVISIT architecture
@@ -136,15 +138,24 @@ class Generator():
                 if __debug__:
                     warn("last character not in known performers")
 
-                return random.choice(bot_performers)
+                return random.choice(bot_pool)
 
             upper_name = last_character_name.upper()
             last_performer = self.performance.performers[upper_name]
-            if last_performer in bot_performers:
-                bot_performers.remove(last_performer)
+            if last_performer in bot_pool:
+                bot_pool.remove(last_performer)
+
+        # If bot_pool is empty (probably only one bot performer)
+        #@REVISIT how do we want to handle this?
+        if not bot_pool:
+            # Warn user
+            print("WARNING: bot_pool is empty; probably only one bot performer")
+
+            # Use first bot in performance
+            return self.performance.bot_performers[0]
 
         # Pick a random bot performer
-        bot_performer = random.choice(bot_performers)
+        bot_performer = random.choice(bot_pool)
 
         return bot_performer
 
@@ -179,16 +190,26 @@ class Generator():
         prompt = self.prepare_chatbot_prompt(next_performer=performer,
                                              num_lines=num_lines)
 
+        # Get chatbot used for performer
+        chatbot = self.get_performer_chatbot(performer)
+
         #@SCAFFOLDING
         stop_sequences = []
         if num_lines == 1:
-            stop_sequences.append({
-                "type": "regex",
-                "value": r"[\S]+\n\n"
-            })
+            # If chatbot is remote
+            if chatbot.is_remote:
+                # Assume regex not supported, just stop gen on double newline
+                #@REVISIT!
+                stop_sequences.append("\n\n")
 
-        # Get chatbot used for performer
-        chatbot = self.get_performer_chatbot(performer)
+            # If chatbot is local
+            else:
+                # Stop gen on double newline after non-whitespace character
+                stop_sequences.append({
+                    "type": "regex",
+                    "value": r"[\S]+\n\n"
+                })
+
 
         if not chatbot:
             raise Exception("No chatbot for performer or performance; " \
