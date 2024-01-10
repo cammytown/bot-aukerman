@@ -21,8 +21,8 @@ if verbose:
 # }
 
 model_config = {
-    "model": "text-ada-001",
     "engine": "openai",
+    "model": "text-ada-001",
     "api_env_var": "OPENAI_API_KEY",
 }
 
